@@ -26,6 +26,12 @@ export default function CustomerHome() {
           >
             Tra cứu đơn
           </button>
+          <button
+            onClick={() => navigate('/customer/loyalty')}
+            className="px-6 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 shadow-sm transition-colors inline-flex items-center justify-center cursor-pointer"
+          >
+            Ví tích điểm
+          </button>
         </div>
       </div>
 

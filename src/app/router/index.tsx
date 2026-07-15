@@ -8,6 +8,7 @@ import AdminLayout from '../layouts/AdminLayout';
 
 import CustomerHome from '../../pages/customer/CustomerHome';
 import CustomerTrack from '../../pages/customer/CustomerTrack';
+import CustomerLoyalty from '../../pages/customer/CustomerLoyalty';
 import StoreDashboard from '../../pages/store/StoreDashboard';
 import StoreOrders from '../../pages/store/StoreOrders';
 import StoreOrdersNew from '../../pages/store/StoreOrdersNew';
@@ -36,6 +37,7 @@ const routes: RouteObject[] = [
       { index: true, element: <CustomerHome /> },
       { path: 'orders', element: <GenericPlaceholderPage /> },
       { path: 'track', element: <CustomerTrack /> },
+      { path: 'loyalty', element: <CustomerLoyalty /> },
       { path: 'profile', element: <GenericPlaceholderPage /> },
     ],
   },
