@@ -84,9 +84,6 @@ export default function CustomerOrders() {
     toast(`Đã yêu cầu đặt lại đơn hàng ${orderId} thành công!`, 'success');
   };
 
-  const handleFeedback = (orderId: string) => {
-    toast(`Gửi phản hồi đơn hàng ${orderId} thành công! Cảm ơn ý kiến của bạn.`, 'success');
-  };
 
   // Filter Logic
   const filteredOrders = mockOrdersData.filter((order) => {
@@ -281,7 +278,7 @@ export default function CustomerOrders() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleFeedback(order.id)}
+                              onClick={() => navigate(`/customer/feedback/${order.id}`)}
                               className="flex-1 sm:flex-none px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-600 font-semibold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer"
                             >
                               Gửi phản hồi

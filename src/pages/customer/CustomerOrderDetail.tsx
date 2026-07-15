@@ -378,7 +378,7 @@ export default function CustomerOrderDetail() {
 
             <button
               type="button"
-              onClick={() => handleActionMock('Gửi phản hồi')}
+              onClick={() => navigate(`/customer/feedback/${order.id}`)}
               className="w-full py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all border border-slate-200 cursor-pointer flex items-center justify-center gap-2"
             >
               <MessageSquare size={14} className="text-slate-400" />
