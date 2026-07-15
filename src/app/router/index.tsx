@@ -12,6 +12,7 @@ import CustomerLoyalty from '../../pages/customer/CustomerLoyalty';
 import CustomerOrders from '../../pages/customer/CustomerOrders';
 import CustomerOrderDetail from '../../pages/customer/CustomerOrderDetail';
 import CustomerPickup from '../../pages/customer/CustomerPickup';
+import CustomerQrOrder from '../../pages/customer/CustomerQrOrder';
 import StoreDashboard from '../../pages/store/StoreDashboard';
 import StoreOrders from '../../pages/store/StoreOrders';
 import StoreOrdersNew from '../../pages/store/StoreOrdersNew';
@@ -43,6 +44,7 @@ const routes: RouteObject[] = [
       { path: 'track', element: <CustomerTrack /> },
       { path: 'loyalty', element: <CustomerLoyalty /> },
       { path: 'pickup', element: <CustomerPickup /> },
+      { path: 'qr/:storeToken', element: <CustomerQrOrder /> },
       { path: 'profile', element: <GenericPlaceholderPage /> },
     ],
   },
