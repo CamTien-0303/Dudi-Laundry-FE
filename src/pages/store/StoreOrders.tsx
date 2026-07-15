@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Plus } from 'lucide-react';
 import {
   PageHeader,
@@ -8,47 +9,83 @@ import {
   FilterBar,
   FilterChip,
   SearchInput,
-  RowActions,
 } from '../../components/common';
-import { useToast } from '../../components/common/Toast';
+import { useOrderStore } from '../../mocks/orderStore';
+import type { Order } from '../../mocks/orderStore';
 
 export default function StoreOrders() {
-  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { orders } = useOrderStore();
   const [search, setSearch] = useState('');
-
-  const orders = [
-    { id: '#DL-001', customer: 'Nguyễn Văn A', service: 'Giặt sấy 5kg', status: 'Đang giặt', variant: 'info' as const, amount: '120.000đ' },
-    { id: '#DL-002', customer: 'Trần Thị B', service: 'Giặt hấp 3kg', status: 'Chờ giao', variant: 'warning' as const, amount: '250.000đ' },
-    { id: '#DL-003', customer: 'Lê Văn C', service: 'Giặt sấy 8kg', status: 'Hoàn thành', variant: 'success' as const, amount: '180.000đ' },
-    { id: '#DL-004', customer: 'Phạm Thị D', service: 'Giặt khô 2kg', status: 'Tiếp nhận', variant: 'default' as const, amount: '300.000đ' },
-    { id: '#DL-005', customer: 'Hoàng Văn E', service: 'Giặt sấy 4kg', status: 'Đang giặt', variant: 'info' as const, amount: '95.000đ' },
-  ];
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
   const columns = [
     { key: 'id', header: 'Mã đơn' },
-    { key: 'customer', header: 'Khách hàng', render: (row: typeof orders[0]) => <span className="font-semibold text-foreground/80">{row.customer}</span> },
-    { key: 'service', header: 'Dịch vụ' },
-    { key: 'amount', header: 'Số tiền', className: 'font-semibold text-foreground/90' },
-    { key: 'status', header: 'Trạng thái', render: (row: typeof orders[0]) => <StatusBadge label={row.status} variant={row.variant} /> },
     {
-      key: 'actions',
-      header: 'Thao tác',
-      className: 'text-right',
-      render: (row: typeof orders[0]) => (
-        <RowActions
-          onView={() => toast(`Xem chi tiết đơn hàng ${row.id}`)}
-          onEdit={() => toast(`Sửa đơn hàng ${row.id}`)}
-          onDelete={() => toast(`Xóa đơn hàng ${row.id}`, 'warning')}
-        />
+      key: 'customer',
+      header: 'Khách hàng',
+      render: (row: Order) => (
+        <div className="flex flex-col gap-0.5 text-left">
+          <span className="font-semibold text-slate-900">{row.customerName}</span>
+          <span className="text-[10px] text-slate-500">{row.customerPhone}</span>
+        </div>
       ),
+    },
+    { key: 'serviceName', header: 'Dịch vụ' },
+    {
+      key: 'amount',
+      header: 'Tổng tiền',
+      render: (row: Order) => <span className="font-semibold text-slate-900">{row.amount.toLocaleString('vi-VN')}đ</span>,
+    },
+    {
+      key: 'status',
+      header: 'Trạng thái',
+      render: (row: Order) => {
+        const map = {
+          RECEIVED: { label: 'Nhận đồ', variant: 'default' as const },
+          WASHING: { label: 'Đang giặt', variant: 'info' as const },
+          DRYING_IRONING: { label: 'Đang sấy/ủi/gấp', variant: 'warning' as const },
+          READY: { label: 'Hoàn tất', variant: 'success' as const },
+          RETURNED: { label: 'Đã trả khách', variant: 'success' as const },
+          CANCELLED: { label: 'Đã hủy', variant: 'error' as const },
+        };
+        const item = map[row.status] || { label: row.status, variant: 'default' };
+        return <StatusBadge label={item.label} variant={item.variant} />;
+      },
+    },
+    {
+      key: 'paymentStatus',
+      header: 'Thanh toán',
+      render: (row: Order) => {
+        const map = {
+          PAID: { label: 'Đã thanh toán', variant: 'success' as const },
+          UNPAID: { label: 'Chưa thanh toán', variant: 'error' as const },
+          PARTIAL: { label: 'Một phần', variant: 'warning' as const },
+        };
+        const item = map[row.paymentStatus] || { label: row.paymentStatus, variant: 'default' };
+        return <StatusBadge label={item.label} variant={item.variant} />;
+      },
+    },
+    {
+      key: 'createdAt',
+      header: 'Thời gian tạo',
+      render: (row: Order) => {
+        const date = new Date(row.createdAt);
+        return <span className="text-slate-500">{date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} {date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' })}</span>;
+      },
     },
   ];
 
-  const filteredOrders = orders.filter(
-    (o) =>
-      o.customer.toLowerCase().includes(search.toLowerCase()) ||
-      o.id.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOrders = orders.filter((o) => {
+    const matchesSearch =
+      o.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      o.customerPhone.includes(search) ||
+      o.id.toLowerCase().includes(search.toLowerCase());
+    
+    const matchesStatus = selectedStatus === 'ALL' || o.status === selectedStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
@@ -60,7 +97,7 @@ export default function StoreOrders() {
           { label: 'Đơn hàng' },
         ]}
         actions={
-          <Button variant="primary" size="sm" onClick={() => toast('Mở form tạo đơn mới')}>
+          <Button variant="primary" size="sm" onClick={() => navigate('/store/orders/new')}>
             <Plus size={16} />
             Tạo đơn hàng
           </Button>
@@ -68,16 +105,34 @@ export default function StoreOrders() {
       />
 
       {/* Filter panel */}
-      <FilterBar onClear={() => setSearch('')} showClear={!!search}>
+      <FilterBar onClear={() => { setSearch(''); setSelectedStatus('ALL'); }} showClear={!!search || selectedStatus !== 'ALL'}>
         <div className="w-56">
           <SearchInput
-            placeholder="Tìm mã đơn, tên khách..."
+            placeholder="Tìm mã đơn, SĐT..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onClear={() => setSearch('')}
           />
         </div>
+        
+        <div>
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 text-xs focus:border-blue-500 outline-none transition-all cursor-pointer"
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="RECEIVED">Nhận đồ (RECEIVED)</option>
+            <option value="WASHING">Đang giặt (WASHING)</option>
+            <option value="DRYING_IRONING">Đang sấy/ủi/gấp (DRYING_IRONING)</option>
+            <option value="READY">Hoàn tất (READY)</option>
+            <option value="RETURNED">Đã trả khách (RETURNED)</option>
+            <option value="CANCELLED">Đã hủy (CANCELLED)</option>
+          </select>
+        </div>
+
         {search && <FilterChip label="Tìm kiếm" value={search} onRemove={() => setSearch('')} />}
+        {selectedStatus !== 'ALL' && <FilterChip label="Trạng thái" value={selectedStatus} onRemove={() => setSelectedStatus('ALL')} />}
       </FilterBar>
 
       {/* Main Table */}
@@ -87,7 +142,7 @@ export default function StoreOrders() {
         pagination={{
           currentPage: 1,
           totalPages: 1,
-          onPageChange: (p) => toast(`Trang ${p}`),
+          onPageChange: () => {},
         }}
       />
     </div>

@@ -1,6 +1,9 @@
+import { useNavigate } from 'react-router';
 import { MapPin, Star, Clock, Sparkles, Shirt } from 'lucide-react';
 
 export default function CustomerHome() {
+  const navigate = useNavigate();
+
   return (
     <div className="flex flex-col gap-[36px] animate-fadeIn pb-8">
       {/* Hero Section */}
@@ -17,7 +20,10 @@ export default function CustomerHome() {
           <button className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium whitespace-nowrap inline-flex items-center justify-center cursor-pointer border-0">
             Đặt lấy đồ
           </button>
-          <button className="px-6 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 shadow-sm transition-colors inline-flex items-center justify-center cursor-pointer">
+          <button
+            onClick={() => navigate('/customer/track')}
+            className="px-6 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 shadow-sm transition-colors inline-flex items-center justify-center cursor-pointer"
+          >
             Tra cứu đơn
           </button>
         </div>

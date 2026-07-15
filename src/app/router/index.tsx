@@ -7,8 +7,10 @@ import StoreLayout from '../layouts/StoreLayout';
 import AdminLayout from '../layouts/AdminLayout';
 
 import CustomerHome from '../../pages/customer/CustomerHome';
+import CustomerTrack from '../../pages/customer/CustomerTrack';
 import StoreDashboard from '../../pages/store/StoreDashboard';
 import StoreOrders from '../../pages/store/StoreOrders';
+import StoreOrdersNew from '../../pages/store/StoreOrdersNew';
 import StoreOperations from '../../pages/store/StoreOperations';
 import AdminDashboard from '../../pages/admin/AdminDashboard';
 import AdminPartners from '../../pages/admin/AdminPartners';
@@ -33,6 +35,7 @@ const routes: RouteObject[] = [
     children: [
       { index: true, element: <CustomerHome /> },
       { path: 'orders', element: <GenericPlaceholderPage /> },
+      { path: 'track', element: <CustomerTrack /> },
       { path: 'profile', element: <GenericPlaceholderPage /> },
     ],
   },
@@ -43,6 +46,7 @@ const routes: RouteObject[] = [
       { index: true, element: <Navigate to="/store/dashboard" replace /> },
       { path: 'dashboard', element: <StoreDashboard /> },
       { path: 'orders', element: <StoreOrders /> },
+      { path: 'orders/new', element: <StoreOrdersNew /> },
       { path: 'operations', element: <StoreOperations /> },
       { path: 'customers', element: <GenericPlaceholderPage /> },
       { path: 'inventory', element: <GenericPlaceholderPage /> },
