@@ -17,7 +17,10 @@ export default function CustomerHome() {
           </p>
         </div>
         <div className="flex flex-row flex-wrap gap-4 items-center justify-start w-full">
-          <button className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium whitespace-nowrap inline-flex items-center justify-center cursor-pointer border-0">
+          <button 
+            onClick={() => navigate('/customer/pickup')}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium whitespace-nowrap inline-flex items-center justify-center cursor-pointer border-0"
+          >
             Đặt lấy đồ
           </button>
           <button
@@ -61,7 +64,10 @@ export default function CustomerHome() {
                 Giặt sấy tiêu chuẩn, nhanh chóng và sạch sẽ cho quần áo hàng ngày của bạn.
               </p>
             </div>
-            <button className="w-full py-3 bg-slate-50 border-t border-slate-100 text-slate-600 text-sm font-medium hover:text-blue-600 hover:bg-slate-100/80 transition-colors text-center block rounded-b-xl cursor-pointer border-0">
+            <button 
+              onClick={() => navigate('/customer/pickup')}
+              className="w-full py-3 bg-slate-50 border-t border-slate-100 text-slate-600 text-sm font-medium hover:text-blue-600 hover:bg-slate-100/80 transition-colors text-center block rounded-b-xl cursor-pointer border-0"
+            >
               Xem chi tiết
             </button>
           </div>
@@ -80,7 +86,10 @@ export default function CustomerHome() {
                 Dịch vụ giặt hấp cao cấp dành riêng cho đồ vest, đầm dạ hội và quần áo đặc biệt.
               </p>
             </div>
-            <button className="w-full py-3 bg-slate-50 border-t border-slate-100 text-slate-600 text-sm font-medium hover:text-blue-600 hover:bg-slate-100/80 transition-colors text-center block rounded-b-xl cursor-pointer border-0">
+            <button 
+              onClick={() => navigate('/customer/pickup')}
+              className="w-full py-3 bg-slate-50 border-t border-slate-100 text-slate-600 text-sm font-medium hover:text-blue-600 hover:bg-slate-100/80 transition-colors text-center block rounded-b-xl cursor-pointer border-0"
+            >
               Xem chi tiết
             </button>
           </div>
@@ -99,7 +108,10 @@ export default function CustomerHome() {
                 Chăm sóc, khử mùi và phục hồi chuyên sâu cho các dòng giày sneaker và túi xách.
               </p>
             </div>
-            <button className="w-full py-3 bg-slate-50 border-t border-slate-100 text-slate-600 text-sm font-medium hover:text-blue-600 hover:bg-slate-100/80 transition-colors text-center block rounded-b-xl cursor-pointer border-0">
+            <button 
+              onClick={() => navigate('/customer/pickup')}
+              className="w-full py-3 bg-slate-50 border-t border-slate-100 text-slate-600 text-sm font-medium hover:text-blue-600 hover:bg-slate-100/80 transition-colors text-center block rounded-b-xl cursor-pointer border-0"
+            >
               Xem chi tiết
             </button>
           </div>

@@ -11,6 +11,7 @@ import CustomerTrack from '../../pages/customer/CustomerTrack';
 import CustomerLoyalty from '../../pages/customer/CustomerLoyalty';
 import CustomerOrders from '../../pages/customer/CustomerOrders';
 import CustomerOrderDetail from '../../pages/customer/CustomerOrderDetail';
+import CustomerPickup from '../../pages/customer/CustomerPickup';
 import StoreDashboard from '../../pages/store/StoreDashboard';
 import StoreOrders from '../../pages/store/StoreOrders';
 import StoreOrdersNew from '../../pages/store/StoreOrdersNew';
@@ -41,6 +42,7 @@ const routes: RouteObject[] = [
       { path: 'orders/:orderId', element: <CustomerOrderDetail /> },
       { path: 'track', element: <CustomerTrack /> },
       { path: 'loyalty', element: <CustomerLoyalty /> },
+      { path: 'pickup', element: <CustomerPickup /> },
       { path: 'profile', element: <GenericPlaceholderPage /> },
     ],
   },
