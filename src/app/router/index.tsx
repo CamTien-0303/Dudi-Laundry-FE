@@ -9,6 +9,8 @@ import AdminLayout from '../layouts/AdminLayout';
 import CustomerHome from '../../pages/customer/CustomerHome';
 import CustomerTrack from '../../pages/customer/CustomerTrack';
 import CustomerLoyalty from '../../pages/customer/CustomerLoyalty';
+import CustomerOrders from '../../pages/customer/CustomerOrders';
+import CustomerOrderDetail from '../../pages/customer/CustomerOrderDetail';
 import StoreDashboard from '../../pages/store/StoreDashboard';
 import StoreOrders from '../../pages/store/StoreOrders';
 import StoreOrdersNew from '../../pages/store/StoreOrdersNew';
@@ -35,7 +37,8 @@ const routes: RouteObject[] = [
     element: <CustomerLayout />,
     children: [
       { index: true, element: <CustomerHome /> },
-      { path: 'orders', element: <GenericPlaceholderPage /> },
+      { path: 'orders', element: <CustomerOrders /> },
+      { path: 'orders/:orderId', element: <CustomerOrderDetail /> },
       { path: 'track', element: <CustomerTrack /> },
       { path: 'loyalty', element: <CustomerLoyalty /> },
       { path: 'profile', element: <GenericPlaceholderPage /> },
