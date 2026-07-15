@@ -7,7 +7,8 @@ import {
   MessageSquare,
   FileText,
   AlertTriangle,
-  XCircle
+  XCircle,
+  Truck
 } from 'lucide-react';
 import { PageHeader, useToast } from '../../components/common';
 
@@ -355,6 +356,17 @@ export default function CustomerOrderDetail() {
           <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col gap-3">
             <h3 className="text-sm font-bold text-slate-800 border-b border-slate-50 pb-2">Hành động</h3>
             
+            {order.status === 'COMPLETED' && (
+              <button
+                type="button"
+                onClick={() => navigate(`/customer/delivery/${order.id}`)}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm shadow-emerald-500/10 cursor-pointer flex items-center justify-center gap-2 border-0"
+              >
+                <Truck size={14} />
+                Giao đồ cho tôi
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => handleActionMock('Chat với cửa hàng')}

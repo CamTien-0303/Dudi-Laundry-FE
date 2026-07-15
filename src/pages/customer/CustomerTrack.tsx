@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router';
 import {
   Search,
   MapPin,
@@ -51,6 +52,7 @@ const TIMELINE_STEPS = [
 ];
 
 export default function CustomerTrack() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [searched, setSearched] = useState(false);
   const [result, setResult] = useState<MockOrder | null>(null);
@@ -357,10 +359,11 @@ export default function CustomerTrack() {
                   ) : (
                     <button
                       type="button"
+                      onClick={() => result && navigate(`/customer/delivery/${result.id}`)}
                       className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-98 cursor-pointer flex items-center justify-center gap-2 border-0"
                     >
                       <Truck size={18} />
-                      Đặt nhận đồ tận nơi
+                      Giao đồ cho tôi
                     </button>
                   )}
                 </div>
