@@ -26,6 +26,7 @@ import AdminPartnerDetail from '../../pages/admin/AdminPartnerDetail';
 import AdminPlans from '../../pages/admin/AdminPlans';
 import AdminTransactions from '../../pages/admin/AdminTransactions';
 import AdminRenewals from '../../pages/admin/AdminRenewals';
+import AdminSettings from '../../pages/admin/AdminSettings';
 import LoginPage from '../../pages/LoginPage';
 import GenericPlaceholderPage from '../../pages/GenericPlaceholderPage';
 
@@ -87,7 +88,7 @@ const routes: RouteObject[] = [
       { path: 'renewals', element: <AdminRenewals /> },
       { path: 'users', element: <GenericPlaceholderPage /> },
       { path: 'reports', element: <GenericPlaceholderPage /> },
-      { path: 'settings', element: <GenericPlaceholderPage /> },
+      { path: 'settings', element: <AdminSettings /> },
     ],
   },
 ];
