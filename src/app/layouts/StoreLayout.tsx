@@ -9,6 +9,7 @@ import {
   UserCheck,
   BarChart3,
   Settings,
+  Handshake,
 } from 'lucide-react';
 import { Sidebar, SidebarItem, Topbar } from '../../components/navigation';
 import Drawer from '../../components/common/Drawer';
@@ -26,7 +27,8 @@ export default function StoreLayout() {
       <SidebarItem to="/store/inventory" icon={<Package size={18} />} label="Kho vật tư" collapsed={collapsed} />
       <SidebarItem to="/store/staff" icon={<UserCheck size={18} />} label="Nhân sự" collapsed={collapsed} />
       <SidebarItem to="/store/reports" icon={<BarChart3 size={18} />} label="Báo cáo" collapsed={collapsed} />
-      <SidebarItem to="/store/settings" icon={<Settings size={18} />} label="Cài đặt" collapsed={collapsed} />
+      <SidebarItem to="/store/b2b" icon={<Handshake size={18} />} label="Đối tác B2B" collapsed={collapsed} />
+      <SidebarItem to="/store/settings/branches" icon={<Settings size={18} />} label="Quản lý chi nhánh" collapsed={collapsed} />
     </>
   );
 
@@ -55,7 +57,8 @@ export default function StoreLayout() {
           <SidebarItem to="/store/inventory" icon={<Package size={18} />} label="Kho vật tư" />
           <SidebarItem to="/store/staff" icon={<UserCheck size={18} />} label="Nhân sự" />
           <SidebarItem to="/store/reports" icon={<BarChart3 size={18} />} label="Báo cáo" />
-          <SidebarItem to="/store/settings" icon={<Settings size={18} />} label="Cài đặt" />
+          <SidebarItem to="/store/b2b" icon={<Handshake size={18} />} label="Đối tác B2B" />
+          <SidebarItem to="/store/settings/branches" icon={<Settings size={18} />} label="Quản lý chi nhánh" />
         </div>
       </Drawer>
 

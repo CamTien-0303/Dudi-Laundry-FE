@@ -20,6 +20,8 @@ import StoreDashboard from '../../pages/store/StoreDashboard';
 import StoreOrders from '../../pages/store/StoreOrders';
 import StoreOrdersNew from '../../pages/store/StoreOrdersNew';
 import StoreOperations from '../../pages/store/StoreOperations';
+import StoreBranches from '../../pages/store/StoreBranches';
+import StoreB2B from '../../pages/store/StoreB2B';
 import AdminDashboard from '../../pages/admin/AdminDashboard';
 import AdminPartners from '../../pages/admin/AdminPartners';
 import AdminPartnerDetail from '../../pages/admin/AdminPartnerDetail';
@@ -74,7 +76,10 @@ const routes: RouteObject[] = [
       { path: 'inventory', element: <GenericPlaceholderPage /> },
       { path: 'staff', element: <GenericPlaceholderPage /> },
       { path: 'reports', element: <GenericPlaceholderPage /> },
-      { path: 'settings', element: <GenericPlaceholderPage /> },
+      { path: 'branches', element: <Navigate to="/store/settings/branches" replace /> },
+      { path: 'settings', element: <Navigate to="/store/settings/branches" replace /> },
+      { path: 'settings/branches', element: <StoreBranches /> },
+      { path: 'b2b', element: <StoreB2B /> },
     ],
   },
   {
