@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { Plus } from 'lucide-react';
 import {
   PageHeader,
@@ -120,9 +121,17 @@ const add30Days = (dateStr: string): string => {
 
 export default function AdminPartners() {
   const { toast } = useToast();
-  const [partners, setPartners] = useState<Partner[]>(INITIAL_PARTNERS);
+  const navigate = useNavigate();
+  const [partners, setPartners] = useState<Partner[]>(() => {
+    const saved = localStorage.getItem('dudi_partners');
+    return saved ? JSON.parse(saved) : INITIAL_PARTNERS;
+  });
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('Tất cả');
+
+  useEffect(() => {
+    localStorage.setItem('dudi_partners', JSON.stringify(partners));
+  }, [partners]);
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -155,18 +164,7 @@ export default function AdminPartners() {
     setModalOpen(true);
   };
 
-  const handleEditClick = (partner: Partner) => {
-    setEditingPartner(partner);
-    setOwnerName(partner.ownerName);
-    setBrandName(partner.brandName);
-    setPhone(partner.phone);
-    setEmail(partner.email);
-    setAddress(partner.address || '');
-    setTier(partner.tier);
-    setTaxId(partner.taxId || '');
-    setFormErrors({});
-    setModalOpen(true);
-  };
+
 
   const handleTogglePause = (partner: Partner) => {
     setPartners(prev =>
@@ -297,12 +295,26 @@ export default function AdminPartners() {
     {
       key: 'ownerName',
       header: 'Tên chủ tiệm',
-      render: (row: Partner) => <span className="font-semibold text-foreground/90">{row.ownerName}</span>
+      render: (row: Partner) => (
+        <button
+          onClick={() => navigate(`/admin/partners/${row.code}`)}
+          className="font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left cursor-pointer"
+        >
+          {row.ownerName}
+        </button>
+      )
     },
     {
       key: 'brandName',
       header: 'Tên thương hiệu',
-      render: (row: Partner) => <span className="text-foreground/80">{row.brandName}</span>
+      render: (row: Partner) => (
+        <button
+          onClick={() => navigate(`/admin/partners/${row.code}`)}
+          className="text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left cursor-pointer"
+        >
+          {row.brandName}
+        </button>
+      )
     },
     {
       key: 'tier',
@@ -332,7 +344,7 @@ export default function AdminPartners() {
       render: (row: Partner) => (
         <div className="flex justify-end gap-1.5">
           <button
-            onClick={() => handleEditClick(row)}
+            onClick={() => navigate(`/admin/partners/${row.code}`)}
             className="px-2 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer"
           >
             Sửa
