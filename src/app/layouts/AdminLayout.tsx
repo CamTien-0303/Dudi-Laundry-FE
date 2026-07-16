@@ -6,6 +6,7 @@ import {
   Users,
   BarChart3,
   Settings,
+  Package,
 } from 'lucide-react';
 import { Sidebar, SidebarItem, Topbar } from '../../components/navigation';
 import Drawer from '../../components/common/Drawer';
@@ -18,6 +19,7 @@ export default function AdminLayout() {
     <>
       <SidebarItem to="/admin/dashboard" icon={<LayoutDashboard size={18} />} label="Tổng quan" collapsed={collapsed} />
       <SidebarItem to="/admin/partners" icon={<Building2 size={18} />} label="Đối tác" collapsed={collapsed} />
+      <SidebarItem to="/admin/plans" icon={<Package size={18} />} label="Gói dịch vụ" collapsed={collapsed} />
       <SidebarItem to="/admin/users" icon={<Users size={18} />} label="Người dùng" collapsed={collapsed} />
       <SidebarItem to="/admin/reports" icon={<BarChart3 size={18} />} label="Báo cáo" collapsed={collapsed} />
       <SidebarItem to="/admin/settings" icon={<Settings size={18} />} label="Cài đặt" collapsed={collapsed} />
@@ -44,6 +46,7 @@ export default function AdminLayout() {
         <div className="flex flex-col gap-1.5 py-2" onClick={() => setMobileOpen(false)}>
           <SidebarItem to="/admin/dashboard" icon={<LayoutDashboard size={18} />} label="Tổng quan" />
           <SidebarItem to="/admin/partners" icon={<Building2 size={18} />} label="Đối tác" />
+          <SidebarItem to="/admin/plans" icon={<Package size={18} />} label="Gói dịch vụ" />
           <SidebarItem to="/admin/users" icon={<Users size={18} />} label="Người dùng" />
           <SidebarItem to="/admin/reports" icon={<BarChart3 size={18} />} label="Báo cáo" />
           <SidebarItem to="/admin/settings" icon={<Settings size={18} />} label="Cài đặt" />

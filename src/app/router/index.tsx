@@ -23,6 +23,7 @@ import StoreOperations from '../../pages/store/StoreOperations';
 import AdminDashboard from '../../pages/admin/AdminDashboard';
 import AdminPartners from '../../pages/admin/AdminPartners';
 import AdminPartnerDetail from '../../pages/admin/AdminPartnerDetail';
+import AdminPlans from '../../pages/admin/AdminPlans';
 import LoginPage from '../../pages/LoginPage';
 import GenericPlaceholderPage from '../../pages/GenericPlaceholderPage';
 
@@ -79,6 +80,7 @@ const routes: RouteObject[] = [
       { path: 'dashboard', element: <AdminDashboard /> },
       { path: 'partners', element: <AdminPartners /> },
       { path: 'partners/:partnerId', element: <AdminPartnerDetail /> },
+      { path: 'plans', element: <AdminPlans /> },
       { path: 'users', element: <GenericPlaceholderPage /> },
       { path: 'reports', element: <GenericPlaceholderPage /> },
       { path: 'settings', element: <GenericPlaceholderPage /> },
