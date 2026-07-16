@@ -8,6 +8,7 @@ import {
   Settings,
   Package,
   DollarSign,
+  History,
 } from 'lucide-react';
 import { Sidebar, SidebarItem, Topbar } from '../../components/navigation';
 import Drawer from '../../components/common/Drawer';
@@ -22,6 +23,7 @@ export default function AdminLayout() {
       <SidebarItem to="/admin/partners" icon={<Building2 size={18} />} label="Đối tác" collapsed={collapsed} />
       <SidebarItem to="/admin/plans" icon={<Package size={18} />} label="Gói dịch vụ" collapsed={collapsed} />
       <SidebarItem to="/admin/transactions" icon={<DollarSign size={18} />} label="Tài chính" collapsed={collapsed} />
+      <SidebarItem to="/admin/renewals" icon={<History size={18} />} label="Gia hạn" collapsed={collapsed} />
       <SidebarItem to="/admin/users" icon={<Users size={18} />} label="Người dùng" collapsed={collapsed} />
       <SidebarItem to="/admin/reports" icon={<BarChart3 size={18} />} label="Báo cáo" collapsed={collapsed} />
       <SidebarItem to="/admin/settings" icon={<Settings size={18} />} label="Cài đặt" collapsed={collapsed} />
@@ -50,6 +52,7 @@ export default function AdminLayout() {
           <SidebarItem to="/admin/partners" icon={<Building2 size={18} />} label="Đối tác" />
           <SidebarItem to="/admin/plans" icon={<Package size={18} />} label="Gói dịch vụ" />
           <SidebarItem to="/admin/transactions" icon={<DollarSign size={18} />} label="Tài chính" />
+          <SidebarItem to="/admin/renewals" icon={<History size={18} />} label="Gia hạn" />
           <SidebarItem to="/admin/users" icon={<Users size={18} />} label="Người dùng" />
           <SidebarItem to="/admin/reports" icon={<BarChart3 size={18} />} label="Báo cáo" />
           <SidebarItem to="/admin/settings" icon={<Settings size={18} />} label="Cài đặt" />
