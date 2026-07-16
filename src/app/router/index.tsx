@@ -28,6 +28,7 @@ import AdminTransactions from '../../pages/admin/AdminTransactions';
 import AdminRenewals from '../../pages/admin/AdminRenewals';
 import AdminSettings from '../../pages/admin/AdminSettings';
 import AdminZaloInvoiceSettings from '../../pages/admin/AdminZaloInvoiceSettings';
+import AdminReports from '../../pages/admin/AdminReports';
 import LoginPage from '../../pages/LoginPage';
 import GenericPlaceholderPage from '../../pages/GenericPlaceholderPage';
 
@@ -89,7 +90,7 @@ const routes: RouteObject[] = [
       { path: 'renewals', element: <AdminRenewals /> },
       { path: 'zalo-invoice', element: <AdminZaloInvoiceSettings /> },
       { path: 'users', element: <GenericPlaceholderPage /> },
-      { path: 'reports', element: <GenericPlaceholderPage /> },
+      { path: 'reports', element: <AdminReports /> },
       { path: 'settings', element: <AdminSettings /> },
     ],
   },
