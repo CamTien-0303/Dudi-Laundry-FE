@@ -15,6 +15,7 @@ import CustomerPickup from '../../pages/customer/CustomerPickup';
 import CustomerQrOrder from '../../pages/customer/CustomerQrOrder';
 import CustomerDelivery from '../../pages/customer/CustomerDelivery';
 import CustomerFeedback from '../../pages/customer/CustomerFeedback';
+import CustomerSupport from '../../pages/customer/CustomerSupport';
 import StoreDashboard from '../../pages/store/StoreDashboard';
 import StoreOrders from '../../pages/store/StoreOrders';
 import StoreOrdersNew from '../../pages/store/StoreOrdersNew';
@@ -49,6 +50,7 @@ const routes: RouteObject[] = [
       { path: 'qr/:storeToken', element: <CustomerQrOrder /> },
       { path: 'delivery/:orderId', element: <CustomerDelivery /> },
       { path: 'feedback/:orderId', element: <CustomerFeedback /> },
+      { path: 'support', element: <CustomerSupport /> },
       { path: 'profile', element: <GenericPlaceholderPage /> },
     ],
   },

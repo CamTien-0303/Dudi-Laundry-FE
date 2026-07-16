@@ -6,6 +6,7 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import PasswordInput from '../components/common/PasswordInput';
 import InlineAlert from '../components/common/InlineAlert';
+import Checkbox from '../components/common/Checkbox';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export default function LoginPage() {
     const passwordVal = formData.get('password') as string || '';
 
     if (!emailVal) {
-      setError('Vui lòng nhập địa chỉ email.');
+      setError('Vui lòng nhập Email hoặc SĐT.');
       return;
     }
     if (!passwordVal) {
@@ -29,12 +30,9 @@ export default function LoginPage() {
     }
 
     // Mock Login Routing logic
-    if (emailVal === 'admin@dudi.vn') {
+    if (emailVal.includes('admin')) {
       navigate('/admin/dashboard');
-    } else if (emailVal === 'owner@dudi.vn' || emailVal === 'store@dudi.vn') {
-      navigate('/store/dashboard');
     } else {
-      // Show warning for other emails but redirect to store dashboard as demo default
       navigate('/store/dashboard');
     }
   };
@@ -42,9 +40,12 @@ export default function LoginPage() {
   return (
     <div className="login-page select-none">
       <div className="login-card">
-        <div className="login-card__header">
+        <div className="login-card__header flex flex-col items-center">
           <AppLogo />
-          <p className="login-card__subtitle">Đăng nhập vào hệ thống quản lý</p>
+          <h1 className="text-lg font-bold text-foreground mt-3">Đăng nhập hệ thống quản lý</h1>
+          <p className="login-card__subtitle text-center mt-1">
+            Dành cho Admin, chủ tiệm và nhân viên được cấp tài khoản.
+          </p>
         </div>
 
         {error && (
@@ -59,10 +60,9 @@ export default function LoginPage() {
           <Input
             id="email"
             name="email"
-            label="Email"
-            type="email"
-            placeholder="example@dudi.vn"
-            defaultValue="admin@dudi.vn"
+            label="Email hoặc SĐT"
+            type="text"
+            placeholder="Nhập email hoặc số điện thoại"
             required
           />
 
@@ -70,10 +70,24 @@ export default function LoginPage() {
             id="password"
             name="password"
             label="Mật khẩu"
-            placeholder="••••••••"
-            defaultValue="password"
+            placeholder="Nhập mật khẩu"
             required
           />
+
+          <div className="flex items-center justify-between text-xs mt-1">
+            <Checkbox
+              id="remember"
+              name="remember"
+              label="Ghi nhớ đăng nhập"
+            />
+            <button
+              type="button"
+              className="link-btn text-xs"
+              onClick={() => alert('Tính năng quên mật khẩu hiện chưa khả dụng trong bản demo.')}
+            >
+              Quên mật khẩu?
+            </button>
+          </div>
 
           <Button variant="primary" size="lg" type="submit" className="mt-2">
             <LogIn size={18} />
@@ -81,16 +95,22 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="login-card__footer">
-          <p className="login-card__hint">Demo: Nhấn đăng nhập hoặc Enter để vào hệ thống</p>
-          <div className="login-card__links">
-            <button type="button" className="link-btn" onClick={() => navigate('/customer')}>
-              Trang khách hàng →
-            </button>
-            <button type="button" className="link-btn" onClick={() => navigate('/admin/dashboard')}>
-              Trang quản trị →
-            </button>
+        <div className="login-card__footer mt-6">
+          <p className="login-card__hint text-xs text-muted-foreground mb-2">Khu vực Demo thử nghiệm:</p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Button variant="outline" size="sm" onClick={() => navigate('/customer')}>
+              Vào trang khách hàng
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/dashboard')}>
+              Demo Admin
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/store/dashboard')}>
+              Demo Chủ tiệm
+            </Button>
           </div>
+          <p className="text-[10px] text-muted-foreground/70 mt-3 text-center">
+            Các nút demo chỉ dùng trong môi trường phát triển.
+          </p>
         </div>
       </div>
     </div>

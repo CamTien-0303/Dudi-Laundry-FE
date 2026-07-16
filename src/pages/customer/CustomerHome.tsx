@@ -41,6 +41,12 @@ export default function CustomerHome() {
           >
             Lịch sử giặt ủi
           </button>
+          <button
+            onClick={() => navigate('/customer/support')}
+            className="px-6 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-bold border border-blue-200 shadow-sm transition-colors inline-flex items-center justify-center cursor-pointer"
+          >
+            Hỗ trợ / Zalo
+          </button>
         </div>
       </div>
 

@@ -351,6 +351,7 @@ export default function CustomerTrack() {
                   {!isFinished ? (
                     <button
                       type="button"
+                      onClick={() => result && navigate(`/customer/support?orderId=${result.id}`)}
                       className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 active:scale-98 cursor-pointer flex items-center justify-center gap-2 border-0"
                     >
                       <HelpCircle size={18} />

@@ -369,7 +369,7 @@ export default function CustomerOrderDetail() {
 
             <button
               type="button"
-              onClick={() => handleActionMock('Chat với cửa hàng')}
+              onClick={() => navigate(`/customer/support?orderId=${order.id}`)}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm shadow-blue-500/10 cursor-pointer flex items-center justify-center gap-2 border-0"
             >
               <MessageSquare size={14} />
