@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
   Star,
@@ -70,6 +70,8 @@ export default function CustomerFeedback() {
   const [comment, setComment] = useState('');
   const [mockPhotoName, setMockPhotoName] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -101,15 +103,37 @@ export default function CustomerFeedback() {
     }));
   };
 
-  const handleMockUpload = () => {
-    // Simulates selecting a photo
-    setMockPhotoName('DUDI_feedback_photo_laundry.png');
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (photoPreview) {
+        URL.revokeObjectURL(photoPreview);
+      }
+      const newPreviewUrl = URL.createObjectURL(file);
+      setPhotoPreview(newPreviewUrl);
+      setMockPhotoName(file.name);
+    }
   };
 
   const handleClearPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoPreview(null);
     setMockPhotoName('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview) {
+        URL.revokeObjectURL(photoPreview);
+      }
+    };
+  }, [photoPreview]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -431,32 +455,63 @@ export default function CustomerFeedback() {
         {/* Phần 5: Tải ảnh thực tế */}
         <div className="flex flex-col gap-2">
           <span className="text-xs font-bold text-slate-700 text-[13px] block">
-            Hình ảnh thực tế (Mock)
+            Hình ảnh thực tế
           </span>
 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handlePhotoChange}
+            accept="image/*"
+            className="hidden"
+          />
+
           <div
-            onClick={handleMockUpload}
-            className={`border border-dashed border-slate-350 rounded-2xl p-5 text-center flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:bg-slate-50/50 hover:border-slate-400 ${
-              mockPhotoName ? 'bg-blue-50/20 border-blue-400' : 'bg-slate-50/50'
+            onClick={() => fileInputRef.current?.click()}
+            className={`border border-dashed border-slate-350 rounded-2xl p-5 text-center flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:bg-slate-50/50 hover:border-slate-400 ${
+              photoPreview ? 'bg-blue-50/10 border-blue-400' : 'bg-slate-50/50'
             }`}
           >
-            {mockPhotoName ? (
-              <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-white border border-blue-200/50 px-4 py-2.5 rounded-xl">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                <span>{mockPhotoName}</span>
-                <button
-                  type="button"
-                  onClick={handleClearPhoto}
-                  className="ml-2 text-red-500 hover:text-red-700 bg-transparent border-0 cursor-pointer font-bold shrink-0 text-sm select-none"
-                >
-                  Xóa
-                </button>
+            {photoPreview ? (
+              <div className="flex flex-col items-center gap-3 w-full" onClick={(e) => e.stopPropagation()}>
+                {/* Thumbnail Preview */}
+                <div className="relative group w-32 h-32 rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+                  <img
+                    src={photoPreview}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                
+                {/* File info and delete button */}
+                <div className="flex flex-col items-center gap-2 max-w-full">
+                  <span className="text-xs font-semibold text-slate-600 truncate max-w-[240px] px-2 block">
+                    {mockPhotoName}
+                  </span>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                    >
+                      Thay đổi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearPhoto}
+                      className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-650 border border-red-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                    >
+                      Xóa ảnh
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <>
-                <Camera size={26} className="text-slate-400" />
+                <Camera size={26} className="text-slate-450" />
                 <div className="flex flex-col gap-0.5 text-xs text-slate-500">
-                  <span className="font-bold text-slate-650">Bấm để tải ảnh lên</span>
+                  <span className="font-extrabold text-slate-650">Bấm để tải ảnh lên</span>
                   <span className="text-[10px] text-slate-400 font-semibold">Tải ảnh quần áo/giày dép sau khi giặt nếu có</span>
                 </div>
               </>
