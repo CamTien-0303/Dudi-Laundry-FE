@@ -22,6 +22,10 @@ import StoreOrdersNew from '../../pages/store/StoreOrdersNew';
 import StoreOperations from '../../pages/store/StoreOperations';
 import StoreBranches from '../../pages/store/StoreBranches';
 import StoreB2B from '../../pages/store/StoreB2B';
+import StoreCustomers from '../../pages/store/StoreCustomers';
+import StoreLoyaltySettings from '../../pages/store/StoreLoyaltySettings';
+import StoreInventory from '../../pages/store/StoreInventory';
+import StoreStaff from '../../pages/store/StoreStaff';
 import AdminDashboard from '../../pages/admin/AdminDashboard';
 import AdminPartners from '../../pages/admin/AdminPartners';
 import AdminPartnerDetail from '../../pages/admin/AdminPartnerDetail';
@@ -72,9 +76,10 @@ const routes: RouteObject[] = [
       { path: 'orders', element: <StoreOrders /> },
       { path: 'orders/new', element: <StoreOrdersNew /> },
       { path: 'operations', element: <StoreOperations /> },
-      { path: 'customers', element: <GenericPlaceholderPage /> },
-      { path: 'inventory', element: <GenericPlaceholderPage /> },
-      { path: 'staff', element: <GenericPlaceholderPage /> },
+      { path: 'customers', element: <StoreCustomers /> },
+      { path: 'customers/loyalty', element: <StoreLoyaltySettings /> },
+      { path: 'inventory', element: <StoreInventory /> },
+      { path: 'staff', element: <StoreStaff /> },
       { path: 'reports', element: <GenericPlaceholderPage /> },
       { path: 'branches', element: <Navigate to="/store/settings/branches" replace /> },
       { path: 'settings', element: <Navigate to="/store/settings/branches" replace /> },
