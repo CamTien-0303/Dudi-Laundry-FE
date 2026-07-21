@@ -111,14 +111,30 @@ export default function LoginPage() {
           </Button>
         </div>
 
-        {import.meta.env.DEV && (
+        {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCESS === 'true') && (
           <div className="login-card__footer border-t border-dashed border-slate-100 pt-4 text-center">
             <p className="login-card__hint text-xs text-slate-400 mb-2 font-bold">Khu vực Demo thử nghiệm (Chỉ hiện khi dev):</p>
             <div className="flex flex-wrap gap-2 justify-center">
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin/dashboard')} className="font-semibold text-slate-600">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  sessionStorage.setItem('role', 'PLATFORM_ADMIN');
+                  navigate('/admin/dashboard');
+                }} 
+                className="font-semibold text-slate-600"
+              >
                 Demo Admin
               </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/store/dashboard')} className="font-semibold text-slate-600">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  sessionStorage.setItem('role', 'STORE_OWNER');
+                  navigate('/store/dashboard');
+                }} 
+                className="font-semibold text-slate-600"
+              >
                 Demo Chủ tiệm
               </Button>
             </div>
