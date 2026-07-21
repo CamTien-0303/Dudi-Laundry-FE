@@ -12,8 +12,7 @@ import {
   Clock,
   Smartphone,
   Laptop,
-  HelpCircle,
-  Power
+  HelpCircle
 } from 'lucide-react';
 import { PageHeader } from '../../components/common';
 
@@ -36,17 +35,20 @@ const faqList = [
   }
 ];
 
-const ZALO_OA_URL = "";
-const ZALO_WEB_URL = "";
+const ZALO_OA_URL = "https://zalo.me/123456789";
+const ZALO_WEB_URL = "https://chat.zalo.me/?phone=0909123456";
 
 export default function CustomerSupport() {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
 
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  const [isWorking, setIsWorking] = useState(true); // Default Đang hoạt động
   const [showZaloModal, setShowZaloModal] = useState(false);
   const [zaloMockMessage, setZaloMockMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  const currentHour = new Date().getHours();
+  const isWorking = currentHour >= 7 && currentHour < 21;
   
   const [message, setMessage] = useState(
     orderId ? `Tôi cần hỗ trợ đơn hàng #${orderId}` : ''
@@ -58,6 +60,11 @@ export default function CustomerSupport() {
 
   const handleOpenZalo = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!message.trim()) {
+      setError('Vui lòng nhập nội dung cần hỗ trợ.');
+      return;
+    }
+    setError(null);
     setShowZaloModal(true);
   };
 
@@ -131,14 +138,6 @@ export default function CustomerSupport() {
             }`}>
               {isWorking ? 'Đang hoạt động' : 'Tạm nghỉ'}
             </span>
-            <button
-              type="button"
-              onClick={() => setIsWorking(!isWorking)}
-              className="p-1 bg-slate-100 text-slate-500 rounded hover:bg-slate-200 transition-colors"
-              title="Đổi trạng thái (Mock)"
-            >
-              <Power size={14} />
-            </button>
           </div>
         </div>
 
@@ -154,18 +153,22 @@ export default function CustomerSupport() {
           <textarea
             rows={3}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              if (error) setError(null);
+            }}
             placeholder="Nhập nội dung bạn cần hỗ trợ..."
-            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-xs focus:border-blue-500 outline-none placeholder-slate-400 resize-none font-medium transition-all"
+            className={`w-full p-3 bg-slate-50 border rounded-xl text-slate-700 text-xs outline-none placeholder-slate-400 resize-none font-medium transition-all ${
+              error ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-blue-500'
+            }`}
           />
+          {error && <span className="text-red-500 text-[10px] font-semibold mt-0.5">{error}</span>}
         </div>
 
         <button
           type="submit"
           className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-blue-500/20 cursor-pointer border-0 flex items-center justify-center gap-2"
         >
-          {/* Chữ 'Zalo' thay logo */}
-          <span className="font-black text-lg leading-none tracking-tight">Zalo</span>
           <span className="mt-0.5">Chat ngay qua Zalo</span>
         </button>
 
@@ -176,7 +179,7 @@ export default function CustomerSupport() {
         <h3 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-2">Thông tin liên hệ</h3>
         
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
+          <a href="tel:0909123456" className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer no-underline">
             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
               <Phone size={14} />
             </div>
@@ -184,17 +187,17 @@ export default function CustomerSupport() {
               <span className="text-[10px] text-slate-500 font-bold uppercase">Hotline khẩn cấp</span>
               <span className="text-sm font-extrabold text-slate-800">0909 123 456</span>
             </div>
-          </div>
+          </a>
 
-          <div className="flex items-center gap-3 px-1">
+          <a href="mailto:support@dudilaundry.vn" className="flex items-center gap-3 px-1 cursor-pointer hover:opacity-80 no-underline">
             <Mail size={16} className="text-slate-400 shrink-0" />
             <span className="text-xs font-semibold text-slate-700">support@dudilaundry.vn</span>
-          </div>
+          </a>
 
-          <div className="flex items-center gap-3 px-1">
+          <a href="https://maps.google.com/?q=123+Nguyễn+Huệ,+Quận+1,+TP.HCM" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-1 cursor-pointer hover:opacity-80 no-underline">
             <MapPin size={16} className="text-slate-400 shrink-0" />
             <span className="text-xs font-semibold text-slate-700">123 Nguyễn Huệ, Quận 1, TP.HCM</span>
-          </div>
+          </a>
           
           <div className="flex items-center gap-3 px-1">
             <Clock size={16} className="text-slate-400 shrink-0" />
@@ -204,18 +207,18 @@ export default function CustomerSupport() {
 
         {/* Link Widgets Mock */}
         <div className="grid grid-cols-3 gap-2 mt-2 pt-4 border-t border-slate-100">
-          <div className="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl p-2.5 flex flex-col items-center gap-1.5 cursor-pointer transition-colors">
+          <a href="https://facebook.com/dudilaundry" target="_blank" rel="noopener noreferrer" className="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl p-2.5 flex flex-col items-center gap-1.5 cursor-pointer transition-colors no-underline">
             <span className="font-black text-[22px] leading-none tracking-tight">f</span>
             <span className="text-[10px] font-bold mt-[-2px]">Facebook</span>
-          </div>
-          <div className="bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl p-2.5 flex flex-col items-center gap-1.5 cursor-pointer transition-colors">
+          </a>
+          <a href="https://dudilaundry.vn" target="_blank" rel="noopener noreferrer" className="bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl p-2.5 flex flex-col items-center gap-1.5 cursor-pointer transition-colors no-underline">
             <Globe size={18} />
             <span className="text-[10px] font-bold">Website</span>
-          </div>
-          <div className="bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl p-2.5 flex flex-col items-center gap-1.5 cursor-pointer transition-colors">
+          </a>
+          <a href={ZALO_OA_URL} target="_blank" rel="noopener noreferrer" className="bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl p-2.5 flex flex-col items-center gap-1.5 cursor-pointer transition-colors no-underline">
             <span className="font-black text-[22px] leading-none tracking-tight">Z</span>
             <span className="text-[10px] font-bold mt-[-2px]">Zalo OA</span>
-          </div>
+          </a>
         </div>
       </div>
 
