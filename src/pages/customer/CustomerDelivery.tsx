@@ -6,7 +6,6 @@ import {
   Clock,
   CreditCard,
   Phone,
-  ArrowLeft,
   AlertTriangle,
   CheckCircle2,
   Info,
@@ -197,14 +196,8 @@ export default function CustomerDelivery() {
   return (
     <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800 max-w-2xl mx-auto px-4 sm:px-0">
       
-      {/* Nút quay lại & Header */}
-      <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-        <button
-          onClick={() => navigate(`/customer/orders/${orderId}`)}
-          className="w-8 h-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 transition-all cursor-pointer shrink-0"
-        >
-          <ArrowLeft size={16} />
-        </button>
+      {/* Header */}
+      <div className="border-b border-slate-100 pb-2">
         <PageHeader
           title="Đặt lịch giao đồ tận nhà"
           description="Xác nhận địa chỉ và thời gian nhận quần áo sạch đã hoàn tất."

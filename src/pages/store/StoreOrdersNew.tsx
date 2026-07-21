@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { 
   ShoppingCart, Plus, User, Search, FileText, Trash2, 
-  MessageSquare, Printer, Save, Check
+  Printer, Save, AlertCircle
 } from 'lucide-react';
 import { PageHeader, Modal } from '../../components/common';
 import { useToast } from '../../components/common/Toast';
@@ -38,10 +38,14 @@ export default function StoreOrdersNew() {
 
   // Customer State
   const [searchPhone, setSearchPhone] = useState('');
-  const [isAddingNewCust, setIsAddingNewCust] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [customName, setCustomName] = useState('');
-  const [customPhone, setCustomPhone] = useState('');
+  const [customerSelectError, setCustomerSelectError] = useState<string | null>(null);
+
+  // Modal State
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('');
+  const [newCustAddress, setNewCustAddress] = useState('');
   
   // Catalog State
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
@@ -52,38 +56,54 @@ export default function StoreOrdersNew() {
   const [notes, setNotes] = useState('');
   const [discount, setDiscount] = useState<number | string>('');
 
-  // Success Modal
-  const [successOrder, setSuccessOrder] = useState<Order | null>(null);
+  // Suggestions search list
+  const customerSuggestions = useMemo(() => {
+    const val = searchPhone.trim();
+    if (val.length < 2) return [];
+    return mockCustomers.filter(
+      c => c.phone.includes(val) || c.name.toLowerCase().includes(val.toLowerCase())
+    );
+  }, [searchPhone]);
 
-  // Search logic
-  const handleSearchCustomer = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearchPhone(val);
-    if (val.length >= 3) {
-      const found = mockCustomers.find(c => c.phone.includes(val) || c.name.toLowerCase().includes(val.toLowerCase()));
-      if (found) {
-        setSelectedCustomer({ ...found, debt: 50000 }); // mock debt
-        setIsAddingNewCust(false);
-      } else {
-        setSelectedCustomer(null);
-      }
-    } else {
-      setSelectedCustomer(null);
+  const selectCustomerAndClearError = (cust: any) => {
+    setSelectedCustomer(cust);
+    setCustomerSelectError(null);
+  };
+
+  const handleSaveNewCustomer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustName.trim()) {
+      toast('Vui lòng nhập họ tên khách hàng mới', 'error');
+      return;
     }
-  };
+    if (!newCustPhone.trim()) {
+      toast('Vui lòng nhập số điện thoại khách hàng mới', 'error');
+      return;
+    }
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(newCustPhone.trim())) {
+      toast('Số điện thoại không hợp lệ. Vui lòng nhập đúng 10 số, bắt đầu bằng 0.', 'error');
+      return;
+    }
 
-  const handleAddNewCustomer = () => {
-    setIsAddingNewCust(true);
-    setSelectedCustomer(null);
-    setCustomPhone(searchPhone); // prepopulate
-    setCustomName('');
-  };
+    const newCust = {
+      name: newCustName.trim(),
+      phone: newCustPhone.trim(),
+      points: 0,
+      debt: 0,
+      address: newCustAddress.trim() || undefined
+    };
 
-  const cancelAddNewCustomer = () => {
-    setIsAddingNewCust(false);
-    setSearchPhone('');
-    setCustomPhone('');
-    setCustomName('');
+    // Auto select newly created customer
+    selectCustomerAndClearError(newCust);
+    setSearchPhone(newCust.phone);
+    setCustomerModalOpen(false);
+
+    // Reset fields
+    setNewCustName('');
+    setNewCustPhone('');
+    setNewCustAddress('');
+    toast('Đã thêm và chọn khách hàng mới thành công!', 'success');
   };
 
   // Cart logic
@@ -109,19 +129,18 @@ export default function StoreOrdersNew() {
   };
 
   const handleUpdateQuantity = (serviceId: string, val: string) => {
-    const numVal = Number(val);
+    if (val === '') {
+      setCart(prev => prev.map(item => item.serviceId === serviceId ? { ...item, quantity: '' } : item));
+      return;
+    }
+    const numVal = parseFloat(val);
+    if (isNaN(numVal)) return;
+
     if (numVal > 100) {
       toast('Cảnh báo: Khối lượng vượt quá 100kg!', 'warning');
     }
 
-    setCart(prev => {
-      return prev.map(item => {
-        if (item.serviceId === serviceId) {
-          return { ...item, quantity: val === '' ? '' : numVal };
-        }
-        return item;
-      });
-    });
+    setCart(prev => prev.map(item => item.serviceId === serviceId ? { ...item, quantity: numVal } : item));
   };
 
   const handleRemoveItem = (serviceId: string) => {
@@ -129,7 +148,10 @@ export default function StoreOrdersNew() {
   };
 
   // Calculations
-  const subTotal = useMemo(() => cart.reduce((sum, item) => sum + item.price * (Number(item.quantity) || 0), 0), [cart]);
+  const subTotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.price * (Number(item.quantity) || 0), 0);
+  }, [cart]);
+
   const discountVal = Number(discount) || 0;
   const totalAmount = Math.max(0, subTotal - discountVal);
 
@@ -139,37 +161,26 @@ export default function StoreOrdersNew() {
   const handleCreateOrder = (e: React.FormEvent, isDraft: boolean = false) => {
     e.preventDefault();
 
-    let customerName = '';
-    let customerPhone = '';
-    let customerPoints = 0;
-
-    if (selectedCustomer) {
-      customerName = selectedCustomer.name;
-      customerPhone = selectedCustomer.phone;
-      customerPoints = selectedCustomer.points;
-    } else if (isAddingNewCust) {
-      if (!customName.trim()) {
-        toast('Vui lòng nhập tên khách hàng mới', 'error');
-        return;
-      }
-      const phoneRegex = /^0\d{9}$/;
-      if (!phoneRegex.test(customPhone.trim())) {
-        toast('Số điện thoại không hợp lệ. Vui lòng nhập đúng 10 số, bắt đầu bằng 0.', 'error');
-        return;
-      }
-      customerName = customName.trim();
-      customerPhone = customPhone.trim();
-    } else {
-      toast('Vui lòng tìm kiếm hoặc thêm khách hàng mới', 'error');
+    // 1. Validate Customer Selected
+    if (!selectedCustomer) {
+      setCustomerSelectError('Vui lòng chọn khách hàng từ kết quả tìm kiếm hoặc thêm mới.');
+      setTimeout(() => {
+        const searchInput = document.getElementById('customer-search-input');
+        if (searchInput) {
+          searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          searchInput.focus();
+        }
+      }, 50);
       return;
     }
 
+    // 2. Validate Cart Empty
     if (cart.length === 0) {
       toast('Giỏ hàng trống! Vui lòng chọn ít nhất một dịch vụ.', 'error');
       return;
     }
 
-    if (cart.some(item => Number(item.quantity) <= 0)) {
+    if (cart.some(item => Number(item.quantity) <= 0 || isNaN(Number(item.quantity)))) {
       toast('Vui lòng nhập số lượng/khối lượng hợp lệ (lớn hơn 0) cho các dịch vụ.', 'error');
       return;
     }
@@ -185,9 +196,9 @@ export default function StoreOrdersNew() {
 
     const newOrder: Order = {
       id: `DL-${Math.floor(1000 + Math.random() * 9000)}`,
-      customerName,
-      customerPhone,
-      customerPoints,
+      customerName: selectedCustomer.name,
+      customerPhone: selectedCustomer.phone,
+      customerPoints: selectedCustomer.points,
       serviceName,
       quantity: Number(cart[0].quantity),
       unit: cart[0].unit,
@@ -200,7 +211,8 @@ export default function StoreOrdersNew() {
     };
 
     addOrder(newOrder);
-    setSuccessOrder(newOrder); // Opens popup
+    toast(`Tạo đơn hàng ${newOrder.id} và in phiếu thành công!`, 'success');
+    navigate('/store/orders');
   };
 
   return (
@@ -215,120 +227,143 @@ export default function StoreOrdersNew() {
         ]}
       />
 
-      <form className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <form onSubmit={(e) => handleCreateOrder(e, false)} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-left">
         {/* Left Column: Customer & Catalog */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           {/* Customer Section */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <User size={18} className="text-blue-500" />
                 <span>Thông tin khách hàng</span>
               </h2>
-              {!isAddingNewCust && (
-                <button
-                  type="button"
-                  onClick={handleAddNewCustomer}
-                  className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-                >
-                  <Plus size={14} /> Thêm mới
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setCustomerModalOpen(true)}
+                className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border-0 cursor-pointer font-bold"
+              >
+                <Plus size={14} /> Thêm mới
+              </button>
             </div>
             
             <div className="flex flex-col gap-4">
-              {!isAddingNewCust ? (
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Tìm theo Tên hoặc Số điện thoại (Ví dụ: 090...)"
-                    value={searchPhone}
-                    onChange={handleSearchCustomer}
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm focus:border-blue-500 outline-none transition-all"
-                  />
-                  
-                  {/* Active Customer Details Mock */}
-                  {selectedCustomer && (
-                    <div className="mt-3 bg-blue-50/50 border border-blue-100 rounded-xl p-4 text-sm flex flex-col gap-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-bold text-blue-900">{selectedCustomer.name}</p>
-                          <p className="text-slate-600 text-xs">{selectedCustomer.phone}</p>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  id="customer-search-input"
+                  placeholder="Tìm theo Tên hoặc Số điện thoại (Ví dụ: 090...)"
+                  value={searchPhone}
+                  onChange={(e) => {
+                    setSearchPhone(e.target.value);
+                    if (selectedCustomer) setSelectedCustomer(null);
+                    if (customerSelectError) setCustomerSelectError(null);
+                  }}
+                  className={`w-full pl-9 pr-4 py-2.5 bg-slate-50 border rounded-xl text-slate-700 text-sm focus:border-blue-500 outline-none transition-all font-semibold ${
+                    customerSelectError ? 'border-red-500 bg-red-50/10 focus:border-red-500' : 'border-slate-200'
+                  }`}
+                />
+                
+                {/* Suggestions List */}
+                {!selectedCustomer && searchPhone.trim().length >= 2 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-slate-250 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                    {customerSuggestions.length > 0 ? (
+                      customerSuggestions.map((cust) => (
+                        <div
+                          key={cust.phone}
+                          onClick={() => {
+                            selectCustomerAndClearError({ ...cust, debt: 50000 });
+                            setSearchPhone(cust.phone);
+                          }}
+                          className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm text-left flex justify-between items-center border-b border-slate-50 last:border-0 font-semibold"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-800">{cust.name}</span>
+                            <span className="text-xs text-slate-505 ml-2">({cust.phone})</span>
+                          </div>
+                          <span className="text-[10px] bg-slate-100 text-slate-655 px-2 py-0.5 rounded font-bold">
+                            Tích lũy: {cust.points}đ
+                          </span>
                         </div>
-                        <span className="px-2 py-0.5 bg-blue-100/50 text-blue-700 rounded-full font-semibold text-[10px]">Thành viên DUDI</span>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center flex flex-col items-center gap-2">
+                        <p className="text-xs text-slate-500 font-semibold">Không tìm thấy kết quả phù hợp</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewCustPhone(searchPhone);
+                            setCustomerModalOpen(true);
+                          }}
+                          className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border-0 cursor-pointer"
+                        >
+                          Tạo khách hàng mới
+                        </button>
                       </div>
-                      <div className="flex gap-4 mt-1 pt-2 border-t border-blue-100/50 text-xs">
-                        <span className="text-slate-600">Điểm tích lũy: <strong className="text-emerald-600">{selectedCustomer.points}</strong></span>
-                        <span className="text-slate-600">Công nợ: <strong className="text-red-500">{selectedCustomer.debt.toLocaleString('vi-VN')}đ</strong></span>
+                    )}
+                  </div>
+                )}
+
+                {/* Active Customer Details Mock */}
+                {selectedCustomer && (
+                  <div className="mt-3 bg-blue-50/50 border border-blue-100 rounded-xl p-4 text-sm flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-blue-900">{selectedCustomer.name}</p>
+                        <p className="text-slate-600 text-xs">{selectedCustomer.phone}</p>
                       </div>
+                      <span className="px-2 py-0.5 bg-blue-100/50 text-blue-700 rounded-full font-bold text-[10px]">Thành viên DUDI</span>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Tên khách hàng</label>
-                      <input
-                        type="text"
-                        placeholder="Nhập họ tên"
-                        value={customName}
-                        onChange={(e) => setCustomName(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 text-sm focus:border-blue-500 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Số điện thoại</label>
-                      <input
-                        type="text"
-                        placeholder="Nhập SĐT (10 số)"
-                        value={customPhone}
-                        onChange={(e) => setCustomPhone(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 text-sm focus:border-blue-500 outline-none"
-                      />
+                    {selectedCustomer.address && (
+                      <p className="text-xs text-slate-500 mt-0.5">Địa chỉ: <strong className="text-slate-700">{selectedCustomer.address}</strong></p>
+                    )}
+                    <div className="flex gap-4 mt-1 pt-2 border-t border-blue-100/50 text-xs font-semibold">
+                      <span className="text-slate-600">Điểm tích lũy: <strong className="text-emerald-600 font-extrabold">{selectedCustomer.points}</strong></span>
+                      <span className="text-slate-600">Công nợ: <strong className="text-red-500 font-extrabold">{selectedCustomer.debt?.toLocaleString('vi-VN') || 0}đ</strong></span>
                     </div>
                   </div>
-                  <div className="flex justify-end mt-4">
-                    <button
-                      type="button"
-                      onClick={cancelAddNewCustomer}
-                      className="text-xs font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 transition-colors"
-                    >
-                      Hủy bỏ
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
+
+            {customerSelectError && (
+              <p className="text-red-500 text-xs font-bold flex items-center gap-1.5 animate-fadeIn mt-2.5">
+                <AlertCircle size={13} className="shrink-0" />
+                {customerSelectError}
+              </p>
+            )}
           </div>
 
           {/* Service Catalog Section */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <h2 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <ShoppingCart size={18} className="text-blue-500" />
+              <ShoppingCart size={18} className="text-blue-500 animate-none" />
               <span>Danh mục dịch vụ</span>
             </h2>
 
             {/* Category Tabs */}
-            <div className="flex flex-wrap gap-2 mb-4 border-b border-slate-100 pb-2">
+            <div className="flex flex-wrap gap-2 mb-4 border-b border-slate-100 pb-2 select-none">
               {CATEGORIES.map(cat => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                     activeCategory === cat
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                      : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                   }`}
+                  style={{
+                    backgroundColor: activeCategory === cat ? '#2563eb' : '#f8fafc',
+                    borderColor: activeCategory === cat ? '#2563eb' : '#e2e8f0'
+                  }}
                 >
                   {cat}
                 </button>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 select-none">
               {filteredServices.map((service) => (
                 <div
                   key={service.id}
@@ -337,7 +372,7 @@ export default function StoreOrdersNew() {
                 >
                   <div className="w-full">
                     <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-700 mb-1 leading-tight">{service.name}</h3>
-                    <p className="text-xs text-slate-500 font-medium">{service.price.toLocaleString('vi-VN')}đ / {service.unit}</p>
+                    <p className="text-xs text-slate-500 font-bold">{service.price.toLocaleString('vi-VN')}đ / {service.unit}</p>
                   </div>
                   <div className="mt-3 flex w-full justify-end">
                     <span className="w-6 h-6 bg-white group-hover:bg-blue-600 group-hover:text-white text-slate-400 border border-slate-200 group-hover:border-blue-600 rounded-md flex items-center justify-center transition-colors">
@@ -354,7 +389,7 @@ export default function StoreOrdersNew() {
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FileText size={18} className="text-blue-500" />
+              <FileText size={18} className="text-blue-500 animate-none" />
               <span>Giỏ hàng & Thanh toán</span>
             </h2>
 
@@ -363,17 +398,17 @@ export default function StoreOrdersNew() {
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-6">
                   <ShoppingCart size={32} className="mb-2 opacity-20" />
-                  <p className="text-xs font-medium">Chưa có dịch vụ nào</p>
+                  <p className="text-xs font-semibold">Chưa có dịch vụ nào</p>
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div key={item.serviceId} className="flex flex-col gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div key={item.serviceId} className="flex flex-col gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100 text-left">
                     <div className="flex justify-between items-start">
                       <p className="font-bold text-slate-900">{item.name}</p>
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(item.serviceId)}
-                        className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                        className="text-slate-400 hover:text-red-500 transition-colors p-1 border-0 bg-transparent cursor-pointer"
                         title="Xóa"
                       >
                         <Trash2 size={14} />
@@ -383,13 +418,13 @@ export default function StoreOrdersNew() {
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
-                          min="0"
+                          min="0.1"
                           step={item.unit === 'kg' ? '0.1' : '1'}
                           value={item.quantity}
                           onChange={(e) => handleUpdateQuantity(item.serviceId, e.target.value)}
-                          className="w-16 px-2 py-1 bg-white border border-slate-200 rounded text-center font-bold focus:border-blue-500 outline-none"
+                          className="w-16 px-2 py-1 bg-white border border-slate-250 rounded text-center font-bold focus:border-blue-500 outline-none"
                         />
-                        <span className="text-slate-500">{item.unit}</span>
+                        <span className="text-slate-500 font-bold">{item.unit}</span>
                       </div>
                       <span className="font-bold text-slate-900">
                         {(item.price * (Number(item.quantity) || 0)).toLocaleString('vi-VN')}đ
@@ -401,24 +436,24 @@ export default function StoreOrdersNew() {
             </div>
 
             {/* Order Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">GHI CHÚ ĐƠN HÀNG</label>
+            <div className="text-left">
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">GHI CHÚ ĐƠN HÀNG</label>
               <textarea
                 placeholder="Ví dụ: Giặt riêng đồ trắng..."
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-xs focus:border-blue-500 outline-none resize-none"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-xs focus:border-blue-500 outline-none resize-none font-semibold"
               />
             </div>
 
             {/* Billing Summary */}
-            <div className="border-t border-slate-100 pt-4 flex flex-col gap-3">
-              <div className="flex justify-between text-sm">
+            <div className="border-t border-slate-100 pt-4 flex flex-col gap-3 text-left">
+              <div className="flex justify-between text-sm font-semibold">
                 <span className="text-slate-500">Tổng tiền dịch vụ</span>
-                <span className="font-semibold">{subTotal.toLocaleString('vi-VN')}đ</span>
+                <span className="font-bold">{subTotal.toLocaleString('vi-VN')}đ</span>
               </div>
-              <div className="flex justify-between text-sm items-center">
+              <div className="flex justify-between text-sm items-center font-semibold">
                 <span className="text-slate-500">Giảm giá/Khuyến mãi</span>
                 <div className="flex items-center gap-1 w-24">
                   <input
@@ -427,24 +462,24 @@ export default function StoreOrdersNew() {
                     placeholder="0"
                     value={discount}
                     onChange={(e) => setDiscount(e.target.value)}
-                    className="w-full text-right px-2 py-1 border border-slate-200 rounded bg-slate-50 focus:border-blue-500 outline-none font-semibold text-red-500"
+                    className="w-full text-right px-2 py-1 border border-slate-200 rounded bg-slate-50 focus:border-blue-500 outline-none font-bold text-red-500"
                   />
                   <span>đ</span>
                 </div>
               </div>
               <div className="flex justify-between text-base mt-2 pt-2 border-t border-slate-100">
-                <span className="font-bold text-slate-900 uppercase tracking-wide text-sm">Thành tiền</span>
-                <span className="font-extrabold text-blue-600 text-xl">{totalAmount.toLocaleString('vi-VN')}đ</span>
+                <span className="font-bold text-slate-900 uppercase tracking-wide text-xs">Thành tiền</span>
+                <span className="font-extrabold text-blue-650 text-xl">{totalAmount.toLocaleString('vi-VN')}đ</span>
               </div>
             </div>
 
             {/* Payment Method */}
-            <div className="mt-2">
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Thanh toán</label>
+            <div className="mt-2 text-left">
+              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Thanh toán</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value as any)}
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm focus:border-blue-500 outline-none font-bold"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm focus:border-blue-500 outline-none font-bold cursor-pointer"
               >
                 <option value="CASH">Tiền mặt (Đã thu)</option>
                 <option value="BANK_TRANSFER">Chuyển khoản (Đã thu)</option>
@@ -453,75 +488,84 @@ export default function StoreOrdersNew() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 mt-4">
+            <div className="flex gap-3 mt-4 select-none">
               <button
                 type="button"
                 onClick={(e) => handleCreateOrder(e, true)}
-                className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl shadow-xs transition-all text-sm flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl shadow-xs transition-all text-xs flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Save size={16} /> Lưu nháp
               </button>
               <button
-                type="button"
-                onClick={(e) => handleCreateOrder(e, false)}
-                className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-500/10 transition-all text-sm flex items-center justify-center gap-2"
+                type="submit"
+                className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-500/10 transition-all text-xs flex items-center justify-center gap-2 cursor-pointer border-0"
               >
-                <Printer size={16} /> Xác nhận & In
+                <Printer size={16} /> Tạo đơn & in phiếu
               </button>
             </div>
           </div>
         </div>
       </form>
 
-      {/* Success Modal Mock */}
-      <Modal 
-        isOpen={!!successOrder} 
-        onClose={() => { setSuccessOrder(null); navigate('/store/orders'); }} 
-        title="🎉 Tạo đơn thành công"
+      {/* Customer Creation Modal */}
+      <Modal
+        isOpen={customerModalOpen}
+        onClose={() => setCustomerModalOpen(false)}
+        title="➕ Thêm khách hàng mới"
         size="md"
       >
-        {successOrder && (
-          <div className="flex flex-col items-center gap-6 py-4">
-            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-              <Check size={32} className="text-emerald-600" strokeWidth={3} />
-            </div>
-            <div className="text-center">
-              <h3 className="text-xl font-extrabold text-slate-900 mb-1">Mã đơn: {successOrder.id}</h3>
-              <p className="text-slate-500">Khách hàng: <strong>{successOrder.customerName}</strong> ({successOrder.customerPhone})</p>
-              <p className="text-slate-500 mt-1">Tổng tiền: <strong className="text-blue-600">{successOrder.amount.toLocaleString('vi-VN')}đ</strong></p>
-            </div>
-            
-            <div className="w-full bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-3 text-sm mt-2">
-              <MessageSquare size={20} className="text-blue-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-blue-900 mb-1">Zalo Notification (Mock)</p>
-                <p className="text-blue-800 leading-relaxed italic">
-                  "DUDI Laundry xin chào! Đơn hàng {successOrder.id} của quý khách đã được tiếp nhận. 
-                  Tổng tiền: {successOrder.amount.toLocaleString('vi-VN')}đ. Cảm ơn quý khách!"
-                </p>
-                <span className="inline-block mt-2 text-[10px] bg-blue-200/50 text-blue-700 px-2 py-0.5 rounded font-bold">
-                  ✓ Đã gửi tin nhắn tự động
-                </span>
-              </div>
-            </div>
-
-            <div className="w-full flex gap-3 mt-4">
-              <button 
-                onClick={() => { setSuccessOrder(null); navigate('/store/orders'); }}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition-colors text-sm"
-              >
-                Về danh sách
-              </button>
-              <button 
-                onClick={() => { setSuccessOrder(null); window.location.reload(); }}
-                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors text-sm flex justify-center items-center gap-2"
-              >
-                <Plus size={16} /> Tạo đơn tiếp
-              </button>
-            </div>
+        <form onSubmit={handleSaveNewCustomer} className="flex flex-col gap-4 text-left p-2">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-700">Họ và tên <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              placeholder="Nhập họ và tên khách hàng..."
+              value={newCustName}
+              onChange={(e) => setNewCustName(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-750 text-sm focus:border-blue-500 outline-none font-semibold"
+            />
           </div>
-        )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-700">Số điện thoại <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              placeholder="Nhập số điện thoại (10 chữ số)..."
+              value={newCustPhone}
+              onChange={(e) => setNewCustPhone(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-750 text-sm focus:border-blue-500 outline-none font-semibold"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-700">Địa chỉ (Không bắt buộc)</label>
+            <input
+              type="text"
+              placeholder="Nhập địa chỉ của khách..."
+              value={newCustAddress}
+              onChange={(e) => setNewCustAddress(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-750 text-sm focus:border-blue-500 outline-none font-semibold"
+            />
+          </div>
+
+          <div className="flex gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => setCustomerModalOpen(false)}
+              className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-sm border-0 cursor-pointer"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors text-sm border-0 cursor-pointer"
+            >
+              Lưu & Chọn khách
+            </button>
+          </div>
+        </form>
       </Modal>
+
     </div>
   );
 }

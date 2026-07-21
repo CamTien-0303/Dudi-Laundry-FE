@@ -10,7 +10,8 @@ import {
   Bell,
   Coins,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  AlertCircle
 } from 'lucide-react';
 import { PageHeader, useToast } from '../../components/common';
 
@@ -107,11 +108,35 @@ export default function CustomerLoyalty() {
   const [query, setQuery] = useState('');
   const [searched, setSearched] = useState(false);
   const [member, setMember] = useState<MockMember | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setSearched(true);
     const cleanedQuery = query.trim();
+
+    if (!cleanedQuery) {
+      setValidationError('Vui lòng nhập số điện thoại để tra cứu!');
+      setSearched(false);
+      setMember(null);
+      return;
+    }
+
+    if (!/^\d+$/.test(cleanedQuery)) {
+      setValidationError('Số điện thoại chỉ được chứa các chữ số!');
+      setSearched(false);
+      setMember(null);
+      return;
+    }
+
+    if (cleanedQuery.length < 9 || cleanedQuery.length > 11) {
+      setValidationError('Số điện thoại phải từ 9 đến 11 chữ số!');
+      setSearched(false);
+      setMember(null);
+      return;
+    }
+
+    setValidationError(null);
+    setSearched(true);
 
     if (cleanedQuery === '0901234567') {
       setMember(mockMemberData);
@@ -124,6 +149,7 @@ export default function CustomerLoyalty() {
     setQuery('');
     setSearched(false);
     setMember(null);
+    setValidationError(null);
   };
 
   const handleRedeem = (voucherTitle: string, pointsNeeded: number, promoCode: string) => {
@@ -138,22 +164,27 @@ export default function CustomerLoyalty() {
       />
 
       {/* Form tìm kiếm số điện thoại */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-sm">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-sm text-left">
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-grow">
             <input
               type="text"
               placeholder="Nhập số điện thoại đăng ký (ví dụ: 0901234567)..."
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm focus:border-blue-500 focus:bg-white outline-none transition-all placeholder-slate-400"
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (validationError) setValidationError(null);
+              }}
+              className={`w-full pl-11 pr-4 py-3 bg-slate-50 border rounded-xl text-slate-700 text-sm focus:border-blue-500 focus:bg-white outline-none transition-all placeholder-slate-400 font-semibold ${
+                validationError ? 'border-red-300 bg-red-50/10' : 'border-slate-200'
+              }`}
             />
-            <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+            <Search className="absolute left-4 top-3.5 text-slate-450" size={18} />
           </div>
           <div className="flex gap-2">
             <button
               type="submit"
-              className="flex-1 sm:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm shadow-blue-500/10 cursor-pointer border-0"
+              className="flex-1 sm:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm shadow-blue-500/10 cursor-pointer border-0"
             >
               Tra cứu
             </button>
@@ -161,23 +192,20 @@ export default function CustomerLoyalty() {
               <button
                 type="button"
                 onClick={handleClear}
-                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-xl transition-all cursor-pointer border-0"
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm rounded-xl transition-all cursor-pointer border-0"
               >
                 Xóa
               </button>
             )}
           </div>
         </form>
-        <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
-          <span>Gợi ý test nhanh:</span>
-          <button 
-            type="button"
-            onClick={() => setQuery('0901234567')}
-            className="text-blue-600 hover:underline bg-blue-50 px-2 py-0.5 rounded cursor-pointer border-0 font-medium text-[11px]"
-          >
-            SĐT: 0901234567
-          </button>
-        </div>
+
+        {validationError && (
+          <p className="text-red-650 text-xs font-bold flex items-center gap-1.5 animate-fadeIn mt-2.5">
+            <AlertCircle size={13} className="shrink-0" />
+            {validationError}
+          </p>
+        )}
       </div>
 
       {/* Hiển thị kết quả */}

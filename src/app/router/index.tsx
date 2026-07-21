@@ -26,6 +26,7 @@ import StoreCustomers from '../../pages/store/StoreCustomers';
 import StoreLoyaltySettings from '../../pages/store/StoreLoyaltySettings';
 import StoreInventory from '../../pages/store/StoreInventory';
 import StoreStaff from '../../pages/store/StoreStaff';
+import StoreReports from '../../pages/store/StoreReports';
 import AdminDashboard from '../../pages/admin/AdminDashboard';
 import AdminPartners from '../../pages/admin/AdminPartners';
 import AdminPartnerDetail from '../../pages/admin/AdminPartnerDetail';
@@ -80,7 +81,7 @@ const routes: RouteObject[] = [
       { path: 'customers/loyalty', element: <StoreLoyaltySettings /> },
       { path: 'inventory', element: <StoreInventory /> },
       { path: 'staff', element: <StoreStaff /> },
-      { path: 'reports', element: <GenericPlaceholderPage /> },
+      { path: 'reports', element: <StoreReports /> },
       { path: 'branches', element: <Navigate to="/store/settings/branches" replace /> },
       { path: 'settings', element: <Navigate to="/store/settings/branches" replace /> },
       { path: 'settings/branches', element: <StoreBranches /> },

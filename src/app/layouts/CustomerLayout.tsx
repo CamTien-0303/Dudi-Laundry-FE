@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router';
-import { Home, ClipboardList, User, HelpCircle, LogOut } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router';
+import { Home, ClipboardList, User, HelpCircle, LogOut, ArrowLeft } from 'lucide-react';
 import AppLogo from '../../components/common/AppLogo';
 
 export default function CustomerLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = () => {
@@ -13,6 +14,16 @@ export default function CustomerLayout() {
     setIsOpen(false);
     navigate('/login');
   };
+
+  const handleBack = () => {
+    if (window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/customer');
+    }
+  };
+
+  const showBackButton = location.pathname !== '/customer' && location.pathname !== '/customer/';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col select-none">
@@ -142,6 +153,15 @@ export default function CustomerLayout() {
       {/* Main Container */}
       <main className="flex-1 w-full bg-slate-50 min-w-0">
         <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 pt-[28px] pb-24 md:pb-8">
+          {showBackButton && (
+            <button
+              onClick={handleBack}
+              className="mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 hover:bg-white/80 border border-slate-200/65 px-3 py-1.5 rounded-xl transition-all select-none cursor-pointer duration-200 shadow-3xs animate-fadeIn"
+            >
+              <ArrowLeft size={14} className="stroke-[2.5]" />
+              <span>Quay lại</span>
+            </button>
+          )}
           <Outlet />
         </div>
       </main>

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router';
 import {
   Search,
   Calendar,
   ClipboardList,
   Clock,
-  Coins
+  Coins,
+  AlertCircle
 } from 'lucide-react';
 import { PageHeader, useToast } from '../../components/common';
 
@@ -51,25 +52,78 @@ const mockOrdersData: MockOrder[] = [
 
 export default function CustomerOrders() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
-  const [query, setQuery] = useState('');
-  const [searched, setSearched] = useState(false);
-  const [hasData, setHasData] = useState(false);
+
+  // Retrieve state from location.state if it exists
+  const historyState = location.state as {
+    phone?: string;
+    searched?: boolean;
+    statusFilter?: 'ALL' | 'COMPLETED' | 'CANCELLED';
+    timeFilter?: 'ALL' | 'THIS_MONTH' | 'LAST_MONTH';
+    scrollY?: number;
+  } | null;
+
+  const [query, setQuery] = useState(historyState?.phone || '');
+  const [searched, setSearched] = useState(historyState?.searched || false);
+  const [hasData, setHasData] = useState(historyState?.phone === '0901234567');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Filter States
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'CANCELLED'>('ALL');
-  const [timeFilter, setTimeFilter] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'CANCELLED'>(historyState?.statusFilter || 'ALL');
+  const [timeFilter, setTimeFilter] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH'>(historyState?.timeFilter || 'ALL');
+
+  useEffect(() => {
+    if (historyState && historyState.searched) {
+      // Scroll to position after list renders
+      setTimeout(() => {
+        window.scrollTo(0, historyState.scrollY || 0);
+      }, 50);
+    }
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setSearched(true);
     const cleanedQuery = query.trim();
 
-    if (cleanedQuery === '0901234567') {
-      setHasData(true);
-    } else {
+    if (!cleanedQuery) {
+      setValidationError('Vui lòng nhập số điện thoại để tra cứu!');
+      setSearched(false);
       setHasData(false);
+      return;
     }
+
+    if (!/^\d+$/.test(cleanedQuery)) {
+      setValidationError('Số điện thoại chỉ được chứa các chữ số!');
+      setSearched(false);
+      setHasData(false);
+      return;
+    }
+
+    if (cleanedQuery.length < 9 || cleanedQuery.length > 11) {
+      setValidationError('Số điện thoại phải từ 9 đến 11 chữ số!');
+      setSearched(false);
+      setHasData(false);
+      return;
+    }
+
+    setValidationError(null);
+    setSearched(true);
+
+    const isMatch = cleanedQuery === '0901234567';
+    setHasData(isMatch);
+
+    // Save to history state immediately
+    navigate(location.pathname, {
+      replace: true,
+      state: {
+        phone: cleanedQuery,
+        searched: true,
+        statusFilter,
+        timeFilter,
+        scrollY: window.scrollY
+      }
+    });
   };
 
   const handleClear = () => {
@@ -78,12 +132,58 @@ export default function CustomerOrders() {
     setHasData(false);
     setStatusFilter('ALL');
     setTimeFilter('ALL');
+    setValidationError(null);
+    // Clear location.state
+    navigate(location.pathname, { replace: true, state: null });
   };
 
   const handleReorder = (orderId: string) => {
     toast(`Đã yêu cầu đặt lại đơn hàng ${orderId} thành công!`, 'success');
   };
 
+  const handleViewDetail = (orderId: string) => {
+    // Save current scrollY and state to history before navigating
+    navigate(location.pathname, {
+      replace: true,
+      state: {
+        phone: query,
+        searched,
+        statusFilter,
+        timeFilter,
+        scrollY: window.scrollY
+      }
+    });
+    // Navigate to detail page
+    navigate(`/customer/orders/${orderId}`);
+  };
+
+  const updateStatusFilter = (newStatus: 'ALL' | 'COMPLETED' | 'CANCELLED') => {
+    setStatusFilter(newStatus);
+    navigate(location.pathname, {
+      replace: true,
+      state: {
+        phone: query,
+        searched,
+        statusFilter: newStatus,
+        timeFilter,
+        scrollY: window.scrollY
+      }
+    });
+  };
+
+  const updateTimeFilter = (newTime: 'ALL' | 'THIS_MONTH' | 'LAST_MONTH') => {
+    setTimeFilter(newTime);
+    navigate(location.pathname, {
+      replace: true,
+      state: {
+        phone: query,
+        searched,
+        statusFilter,
+        timeFilter: newTime,
+        scrollY: window.scrollY
+      }
+    });
+  };
 
   // Filter Logic
   const filteredOrders = mockOrdersData.filter((order) => {
@@ -106,22 +206,27 @@ export default function CustomerOrders() {
       />
 
       {/* Form tìm kiếm số điện thoại */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-sm">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-sm text-left">
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-grow">
             <input
               type="text"
               placeholder="Nhập số điện thoại tra cứu (ví dụ: 0901234567)..."
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm focus:border-blue-500 focus:bg-white outline-none transition-all placeholder-slate-400"
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (validationError) setValidationError(null);
+              }}
+              className={`w-full pl-11 pr-4 py-3 bg-slate-50 border rounded-xl text-slate-700 text-sm focus:border-blue-500 focus:bg-white outline-none transition-all placeholder-slate-400 font-semibold ${
+                validationError ? 'border-red-300 bg-red-50/10' : 'border-slate-250'
+              }`}
             />
-            <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+            <Search className="absolute left-4 top-3.5 text-slate-450" size={18} />
           </div>
           <div className="flex gap-2">
             <button
               type="submit"
-              className="flex-1 sm:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm shadow-blue-500/10 cursor-pointer border-0"
+              className="flex-1 sm:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm shadow-blue-500/10 cursor-pointer border-0"
             >
               Tra cứu
             </button>
@@ -129,23 +234,20 @@ export default function CustomerOrders() {
               <button
                 type="button"
                 onClick={handleClear}
-                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm rounded-xl transition-all cursor-pointer border-0"
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm rounded-xl transition-all cursor-pointer border-0"
               >
                 Xóa
               </button>
             )}
           </div>
         </form>
-        <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
-          <span>Gợi ý test nhanh:</span>
-          <button 
-            type="button"
-            onClick={() => setQuery('0901234567')}
-            className="text-blue-600 hover:underline bg-blue-50 px-2 py-0.5 rounded cursor-pointer border-0 font-medium text-[11px]"
-          >
-            SĐT: 0901234567
-          </button>
-        </div>
+
+        {validationError && (
+          <p className="text-red-650 text-xs font-bold flex items-center gap-1.5 animate-fadeIn mt-2.5">
+            <AlertCircle size={13} className="shrink-0" />
+            {validationError}
+          </p>
+        )}
       </div>
 
       {/* Hiển thị kết quả */}
@@ -167,7 +269,7 @@ export default function CustomerOrders() {
                         <button
                           key={status}
                           type="button"
-                          onClick={() => setStatusFilter(status)}
+                          onClick={() => updateStatusFilter(status)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                             statusFilter === status
                               ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
@@ -191,7 +293,7 @@ export default function CustomerOrders() {
                         <button
                           key={time}
                           type="button"
-                          onClick={() => setTimeFilter(time)}
+                          onClick={() => updateTimeFilter(time)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                             timeFilter === time
                               ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
@@ -264,7 +366,7 @@ export default function CustomerOrders() {
                           <div className="flex gap-2 flex-wrap w-full sm:w-auto">
                             <button
                               type="button"
-                              onClick={() => navigate(`/customer/orders/${order.id}`)}
+                              onClick={() => handleViewDetail(order.id)}
                               className="flex-1 sm:flex-none px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border-0"
                             >
                               Xem chi tiết
@@ -276,13 +378,15 @@ export default function CustomerOrders() {
                             >
                               Đặt lại
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/customer/feedback/${order.id}`)}
-                              className="flex-1 sm:flex-none px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-600 font-semibold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer"
-                            >
-                              Gửi phản hồi
-                            </button>
+                            {isCompleted && (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/customer/feedback/${order.id}`)}
+                                className="flex-1 sm:flex-none px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-650 font-bold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer"
+                              >
+                                Gửi phản hồi
+                              </button>
+                            )}
                           </div>
 
                         </div>
@@ -295,7 +399,7 @@ export default function CustomerOrders() {
                   <div className="bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 text-center shadow-sm flex flex-col items-center justify-center gap-3">
                     <Clock size={32} className="text-slate-300" />
                     <p className="text-slate-650 font-bold text-sm">
-                      Không tìm thấy đơn hàng nào trong khoảng thời gian này
+                      Không tìm thấy đơn hàng nào trong khoảng thời gian này.
                     </p>
                   </div>
                 )}

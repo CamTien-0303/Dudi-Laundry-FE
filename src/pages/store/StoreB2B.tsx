@@ -10,7 +10,7 @@ import { useToast } from '../../components/common/Toast';
 interface B2BPartner {
   id: string;
   name: string;
-  type: 'Khách sạn' | 'Gym' | 'Spa';
+  type: string;
   contactPerson: string;
   phone: string;
   email: string;
@@ -119,7 +119,8 @@ export default function StoreB2B() {
 
   // Form states for new partner
   const [newPartnerName, setNewPartnerName] = useState('');
-  const [newPartnerType, setNewPartnerType] = useState<'Khách sạn' | 'Gym' | 'Spa'>('Khách sạn');
+  const [newPartnerType, setNewPartnerType] = useState<string>('Khách sạn');
+  const [customPartnerType, setCustomPartnerType] = useState('');
   const [newPartnerContact, setNewPartnerContact] = useState('');
   const [newPartnerPhone, setNewPartnerPhone] = useState('');
   const [newPartnerEmail, setNewPartnerEmail] = useState('');
@@ -130,6 +131,18 @@ export default function StoreB2B() {
   const selectedPartner = partners.find(p => p.id === selectedPartnerId) || partners[0];
 
   // Actions
+  const resetForm = () => {
+    setNewPartnerName('');
+    setNewPartnerType('Khách sạn');
+    setCustomPartnerType('');
+    setNewPartnerContact('');
+    setNewPartnerPhone('');
+    setNewPartnerEmail('');
+    setNewPartnerAddress('');
+    setNewPartnerPeriod('Tháng');
+    setNewPartnerNotes('');
+  };
+
   const handleSavePrices = () => {
     toast('Đã lưu cấu hình bảng giá riêng cho đối tác.', 'success');
   };
@@ -173,19 +186,49 @@ export default function StoreB2B() {
       return;
     }
 
+    let typeToSave = newPartnerType;
+    if (newPartnerType === 'Khác') {
+      const trimmedCustom = customPartnerType.trim();
+      if (!trimmedCustom) {
+        toast('Vui lòng nhập loại hình doanh nghiệp cụ thể!', 'error');
+        return;
+      }
+      if (trimmedCustom.toLowerCase() === 'khác') {
+        toast('Không được sử dụng chữ "Khác" làm loại hình doanh nghiệp!', 'error');
+        return;
+      }
+      typeToSave = trimmedCustom;
+    }
+
+    const logoMap: Record<string, string> = {
+      'Khách sạn': '🏨',
+      'Gym/Fitness': '🏋️',
+      'Gym': '🏋️',
+      'Spa/Salon': '🌿',
+      'Spa': '🌿',
+      'Nhà hàng/Café': '☕',
+      'Phòng khám/Bệnh viện': '🏥',
+      'Trường học': '🏫',
+      'Văn phòng/Doanh nghiệp': '🏢',
+      'Căn hộ dịch vụ': '🏢',
+      'Nhà máy/Xưởng sản xuất': '🏭',
+      'Câu lạc bộ thể thao': '⚽'
+    };
+    const logo = logoMap[newPartnerType] || logoMap[typeToSave] || '💼';
+
     const newP: B2BPartner = {
       id: `b2b-${Date.now()}`,
-      name: newPartnerName,
-      type: newPartnerType,
-      contactPerson: newPartnerContact,
-      phone: newPartnerPhone,
-      email: newPartnerEmail,
-      address: newPartnerAddress,
+      name: newPartnerName.trim(),
+      type: typeToSave,
+      contactPerson: newPartnerContact.trim(),
+      phone: newPartnerPhone.trim(),
+      email: newPartnerEmail.trim(),
+      address: newPartnerAddress.trim(),
       period: newPartnerPeriod,
       debt: { unreconciled: 0, old: 0 },
       tier: 'Bạc',
-      logo: newPartnerType === 'Khách sạn' ? '🏨' : newPartnerType === 'Gym' ? '🏋️' : '🌿',
-      notes: newPartnerNotes,
+      logo,
+      notes: newPartnerNotes.trim(),
       hasOrdersInPeriod: false
     };
 
@@ -193,23 +236,25 @@ export default function StoreB2B() {
     setSelectedPartnerId(newP.id);
     setIsAddModalOpen(false);
     toast('Thêm mới đối tác B2B thành công.', 'success');
-
-    // Reset forms
-    setNewPartnerName('');
-    setNewPartnerContact('');
-    setNewPartnerPhone('');
-    setNewPartnerEmail('');
-    setNewPartnerAddress('');
-    setNewPartnerNotes('');
+    resetForm();
   };
 
-  const getPartnerTypeBadge = (type: B2BPartner['type']) => {
-    const map = {
+  const getPartnerTypeBadge = (type: string) => {
+    const map: Record<string, React.ReactNode> = {
       'Khách sạn': <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold border border-blue-100 text-[10px]">🏨 Khách sạn</span>,
+      'Gym/Fitness': <span className="px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full font-bold border border-orange-100 text-[10px]">🏋️ Gym/Fitness</span>,
       'Gym': <span className="px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full font-bold border border-orange-100 text-[10px]">🏋️ Gym</span>,
-      'Spa': <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-100 text-[10px]">🌿 Spa</span>
+      'Spa/Salon': <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-100 text-[10px]">🌿 Spa/Salon</span>,
+      'Spa': <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-100 text-[10px]">🌿 Spa</span>,
+      'Nhà hàng/Café': <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold border border-amber-100 text-[10px]">☕ Nhà hàng/Café</span>,
+      'Phòng khám/Bệnh viện': <span className="px-2 py-0.5 bg-rose-50 text-rose-700 rounded-full font-bold border border-rose-100 text-[10px]">🏥 Phòng khám/Bệnh viện</span>,
+      'Trường học': <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-bold border border-indigo-100 text-[10px]">🏫 Trường học</span>,
+      'Văn phòng/Doanh nghiệp': <span className="px-2 py-0.5 bg-slate-50 text-slate-700 rounded-full font-bold border border-slate-100 text-[10px]">🏢 Văn phòng/Doanh nghiệp</span>,
+      'Căn hộ dịch vụ': <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-full font-bold border border-sky-100 text-[10px]">🏢 Căn hộ dịch vụ</span>,
+      'Nhà máy/Xưởng sản xuất': <span className="px-2 py-0.5 bg-neutral-50 text-neutral-700 rounded-full font-bold border border-neutral-100 text-[10px]">🏭 Nhà máy/Xưởng sản xuất</span>,
+      'Câu lạc bộ thể thao': <span className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded-full font-bold border border-teal-100 text-[10px]">⚽ CLB thể thao</span>
     };
-    return map[type];
+    return map[type] || <span className="px-2 py-0.5 bg-violet-50 text-violet-755 rounded-full font-bold border border-violet-100 text-[10px]">💼 {type}</span>;
   };
 
   const getTierBadge = (tier: B2BPartner['tier']) => {
@@ -246,7 +291,7 @@ export default function StoreB2B() {
             <Button 
               size="sm" 
               variant="primary" 
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => { resetForm(); setIsAddModalOpen(true); }}
               className="flex items-center gap-1 font-bold text-xs"
             >
               <Plus size={14} /> Thêm đối tác
@@ -618,7 +663,7 @@ export default function StoreB2B() {
       </div>
 
       {/* Modal: Add Partner */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Thêm đối tác B2B mới" size="md">
+      <Modal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); resetForm(); }} title="Thêm đối tác B2B mới" size="md">
         <form onSubmit={handleCreatePartner} className="flex flex-col gap-4 text-xs">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
@@ -635,14 +680,34 @@ export default function StoreB2B() {
               <label className="font-semibold text-slate-600">Loại hình doanh nghiệp <span className="text-red-500">*</span></label>
               <select
                 value={newPartnerType}
-                onChange={(e) => setNewPartnerType(e.target.value as any)}
+                onChange={(e) => setNewPartnerType(e.target.value)}
                 className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-bold text-slate-800 cursor-pointer"
               >
                 <option value="Khách sạn">🏨 Khách sạn</option>
-                <option value="Gym">🏋️ Gym</option>
-                <option value="Spa">🌿 Spa</option>
+                <option value="Gym/Fitness">🏋️ Gym/Fitness</option>
+                <option value="Spa/Salon">🌿 Spa/Salon</option>
+                <option value="Nhà hàng/Café">☕ Nhà hàng/Café</option>
+                <option value="Phòng khám/Bệnh viện">🏥 Phòng khám/Bệnh viện</option>
+                <option value="Trường học">🏫 Trường học</option>
+                <option value="Văn phòng/Doanh nghiệp">🏢 Văn phòng/Doanh nghiệp</option>
+                <option value="Căn hộ dịch vụ">🏢 Căn hộ dịch vụ</option>
+                <option value="Nhà máy/Xưởng sản xuất">🏭 Nhà máy/Xưởng sản xuất</option>
+                <option value="Câu lạc bộ thể thao">⚽ Câu lạc bộ thể thao</option>
+                <option value="Khác">💼 Khác</option>
               </select>
             </div>
+            {newPartnerType === 'Khác' && (
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="font-semibold text-slate-600">Nhập loại hình doanh nghiệp <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  placeholder="Nhập loại hình doanh nghiệp"
+                  value={customPartnerType}
+                  onChange={(e) => setCustomPartnerType(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-800"
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <label className="font-semibold text-slate-600">Người liên hệ <span className="text-red-500">*</span></label>
               <input

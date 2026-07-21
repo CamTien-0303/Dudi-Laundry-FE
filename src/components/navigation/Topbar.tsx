@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router';
 import { Bell, ChevronDown, LogOut, Settings, HelpCircle, Menu, Search, Building2 } from 'lucide-react';
 import Avatar from '../common/Avatar';
 
@@ -15,6 +16,10 @@ export default function Topbar({
   showSearch = false,
   onMenuClick,
 }: TopbarProps) {
+  const location = useLocation();
+  const isStore = location.pathname.startsWith('/store');
+  const userLabel = isStore ? 'Quản lý chi nhánh' : 'DUDI Admin';
+
   const [branchOpen, setBranchOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState('Chi nhánh Quận 1');
   const [notifOpen, setNotifOpen] = useState(false);
@@ -142,7 +147,7 @@ export default function Topbar({
           >
             <Avatar name="Admin User" size="sm" />
             <div className="hidden sm:flex flex-col items-start text-left leading-none">
-              <span className="text-xs font-bold text-foreground">DUDI Admin</span>
+              <span className="text-xs font-bold text-foreground">{userLabel}</span>
               <span className="text-[10px] text-muted mt-0.5">Quản lý</span>
             </div>
             <ChevronDown size={12} className="text-muted hidden sm:block" />
