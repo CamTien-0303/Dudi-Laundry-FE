@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import {
   MapPin,
@@ -7,41 +7,10 @@ import {
   Sparkles,
   Shirt,
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
-  Wallet,
   AlertCircle,
-  ShoppingBag,
   ArrowRight,
-  Truck
+  User
 } from 'lucide-react';
-
-const BANNERS = [
-  {
-    id: 1,
-    title: 'Đồng giá giặt sấy 15k/kg',
-    desc: 'Áp dụng cho hóa đơn giặt tiêu chuẩn trên 5kg suốt cả tuần này. Tiết kiệm hơn, giặt nhiều hơn!',
-    badge: 'Ưu đãi cực hot',
-    badgeColor: 'bg-rose-50 text-rose-600 border border-rose-100',
-    bgGradient: 'from-rose-50 to-orange-50/20 border-rose-100/50'
-  },
-  {
-    id: 2,
-    title: 'Tặng 50 điểm thành viên mới',
-    desc: 'Nhận ngay 50 điểm thưởng vào Ví tích điểm khi đăng ký và hoàn thành đơn hàng đầu tiên trên ứng dụng.',
-    badge: 'Dành cho bạn mới',
-    badgeColor: 'bg-blue-50 text-blue-600 border border-blue-100',
-    bgGradient: 'from-blue-50 to-indigo-50/20 border-blue-100/50'
-  },
-  {
-    id: 3,
-    title: 'Giảm 20% giặt hấp cao cấp',
-    desc: 'Ưu đãi đặc biệt giảm 20% khi giặt từ 3 sản phẩm cao cấp (vest, đầm dạ hội, áo lụa). Bảo dưỡng sợi vải tối ưu.',
-    badge: 'Dành cho đồ hiệu',
-    badgeColor: 'bg-amber-50 text-amber-600 border border-amber-100',
-    bgGradient: 'from-amber-50 to-yellow-50/20 border-amber-100/50'
-  }
-];
 
 const SERVICES = [
   {
@@ -87,7 +56,12 @@ const BRANCHES = [
     hours: '7:00 - 21:00',
     hotline: '0901 123 456',
     status: 'open',
-    statusLabel: 'Đang mở'
+    statusLabel: 'Đang mở',
+    services: ['Giặt sấy', 'Giặt hấp', 'Giày & túi'],
+    processingTime: '6–24 giờ',
+    coverage: 'Quận 1, Quận 3, Quận 4',
+    amenities: ['Thanh toán QR', 'Giữ đồ 3 ngày', 'Hỗ trợ Zalo'],
+    note: 'Có dịch vụ giặt nhanh trong ngày'
   },
   {
     id: 'q3',
@@ -96,7 +70,12 @@ const BRANCHES = [
     hours: '7:00 - 21:00',
     hotline: '0901 456 789',
     status: 'open',
-    statusLabel: 'Đang mở'
+    statusLabel: 'Đang mở',
+    services: ['Giặt sấy', 'Giặt hấp', 'Chăn drap & rèm'],
+    processingTime: '8–24 giờ',
+    coverage: 'Quận 3, Quận 10, Phú Nhuận',
+    amenities: ['Bãi giữ xe', 'Thanh toán QR', 'Hỗ trợ Zalo'],
+    note: 'Nhận đồ số lượng lớn và khách hàng B2B'
   },
   {
     id: 'thu_duc',
@@ -105,35 +84,167 @@ const BRANCHES = [
     hours: '7:00 - 21:00',
     hotline: '0901 789 123',
     status: 'closed',
-    statusLabel: 'Đã đóng'
+    statusLabel: 'Đã đóng',
+    services: ['Giặt sấy', 'Giày & túi', 'Chăn drap'],
+    processingTime: '12–24 giờ',
+    coverage: 'TP. Thủ Đức',
+    amenities: ['Bãi giữ xe', 'Giữ đồ 3 ngày'],
+    note: 'Hiện đang đóng, chưa nhận đơn mới'
   }
 ];
 
 export default function CustomerHome() {
   const navigate = useNavigate();
   
-  // Page Mock States
   const [pageState, setPageState] = useState<'normal' | 'loading' | 'error'>('normal');
-  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
-
-  // Detail Modal States
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedBranch, setSelectedBranch] = useState<any>(null);
+  const [hoveredBranch, setHoveredBranch] = useState<string | null>(null);
 
-  // Carousel actions
-  const prevBanner = () => {
-    setCurrentBannerIndex((prev) => (prev === 0 ? BANNERS.length - 1 : prev - 1));
-  };
-  const nextBanner = () => {
-    setCurrentBannerIndex((prev) => (prev === BANNERS.length - 1 ? 0 : prev + 1));
-  };
+  // Animation states
+  const [memberPoints, setMemberPoints] = useState(0);
+  const [progressWidth, setProgressWidth] = useState(0);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const isReduced = mediaQuery.matches;
+
+    if (!isReduced && typeof IntersectionObserver !== 'undefined') {
+      observerRef.current = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const target = entry.target as HTMLElement & { _intervalId?: any };
+          if (entry.isIntersecting) {
+            target.classList.add('is-visible');
+            
+            if (target.id === 'member-strip') {
+              setMemberPoints(0);
+              setProgressWidth(0);
+              let current = 0;
+              const maxTarget = 320;
+              const step = maxTarget / 30; 
+              const interval = setInterval(() => {
+                current += step;
+                if (current >= maxTarget) {
+                  setMemberPoints(maxTarget);
+                  clearInterval(interval);
+                } else {
+                  setMemberPoints(Math.floor(current));
+                }
+              }, 30);
+              setTimeout(() => setProgressWidth(64), 50);
+              target._intervalId = interval;
+            }
+          } else {
+            target.classList.remove('is-visible');
+            if (target.id === 'member-strip') {
+              setMemberPoints(0);
+              setProgressWidth(0);
+              if (target._intervalId) {
+                clearInterval(target._intervalId);
+              }
+            }
+          }
+        });
+      }, { threshold: 0.08, rootMargin: '0px 0px -8% 0px' });
+
+      const elements = document.querySelectorAll('.reveal-hidden');
+      elements.forEach(el => observerRef.current?.observe(el));
+    } else {
+      document.querySelectorAll('.reveal-hidden').forEach(el => {
+        el.classList.add('is-visible');
+      });
+      setMemberPoints(320);
+      setProgressWidth(64);
+    }
+
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, []);
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn pb-8">
-      
-      {/* --- RENDER LOADING STATE --- */}
+    <div className="flex flex-col animate-fadeIn">
+      <style>{`
+        @media (prefers-reduced-motion: no-preference) {
+          .reveal-hidden {
+            opacity: 0;
+            transform: translateY(28px);
+            transition: all 750ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          }
+          .reveal-from-left { transform: translateX(-40px); }
+          .reveal-from-right { transform: translateX(40px); }
+          .reveal-from-bottom { transform: translateY(28px); }
+          
+          .is-visible {
+            opacity: 1 !important;
+            transform: translate(0, 0) !important;
+          }
+          
+          .stagger-1 { transition-delay: 100ms; }
+          .stagger-2 { transition-delay: 200ms; }
+          .stagger-3 { transition-delay: 300ms; }
+
+          .img-zoom-container { overflow: hidden; }
+          .img-zoom {
+            transform: scale(1.03);
+            transition: transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          }
+          .img-zoom.is-visible { transform: scale(1); }
+          .img-zoom-container:hover .img-zoom { transform: scale(1.05); }
+
+          .marquee-content {
+            display: inline-flex;
+            animation: marquee 25s linear infinite;
+          }
+          @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+
+          .link-underline {
+            position: relative;
+          }
+          .link-underline::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            transform: scaleX(0);
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background-color: currentColor;
+            transform-origin: bottom right;
+            transition: transform 0.3s ease-out;
+          }
+          .group:hover .link-underline::after {
+            transform: scaleX(1);
+            transform-origin: bottom left;
+          }
+          
+          .store-card {
+            transition: all 0.3s ease;
+          }
+          .store-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            border-color: #cbd5e1;
+          }
+          .btn-primary-hover {
+            transition: all 0.3s ease;
+          }
+          .btn-primary-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+          }
+          .progress-bar {
+            transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+          }
+        }
+      `}</style>
+
       {pageState === 'loading' && (
-        <div className="flex flex-col gap-6 items-center justify-center py-24 text-center bg-white border border-slate-200 rounded-3xl shadow-3xs">
+        <div className="flex flex-col gap-6 items-center justify-center py-24 text-center bg-white border border-slate-200 rounded-3xl shadow-3xs m-6">
           <div className="w-10 h-10 border-4 border-slate-200 border-t-primary rounded-full animate-spin"></div>
           <div className="flex flex-col gap-1">
             <p className="text-sm font-extrabold text-slate-800">Đang cập nhật dữ liệu...</p>
@@ -142,9 +253,8 @@ export default function CustomerHome() {
         </div>
       )}
 
-      {/* --- RENDER ERROR STATE --- */}
       {pageState === 'error' && (
-        <div className="flex flex-col gap-5 items-center justify-center py-16 text-center bg-white border border-slate-200 rounded-3xl shadow-3xs max-w-md mx-auto w-full">
+        <div className="flex flex-col gap-5 items-center justify-center py-16 text-center bg-white border border-slate-200 rounded-3xl shadow-3xs max-w-md mx-auto w-full m-6">
           <div className="w-14 h-14 rounded-full bg-red-50 text-red-500 border border-red-100 flex items-center justify-center shadow-inner">
             <AlertCircle size={28} className="animate-none" />
           </div>
@@ -155,9 +265,7 @@ export default function CustomerHome() {
             </p>
           </div>
           <button
-            onClick={() => {
-              setPageState('normal');
-            }}
+            onClick={() => setPageState('normal')}
             className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-blue-500/10 cursor-pointer border-0"
           >
             Thử lại
@@ -165,262 +273,342 @@ export default function CustomerHome() {
         </div>
       )}
 
-      {/* --- RENDER NORMAL DASHBOARD --- */}
       {pageState === 'normal' && (
         <>
-          {/* Main Top Grid (Hero + Cards) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Hero Section */}
+          <section className="relative w-full h-[100svh] min-h-[600px] bg-slate-900 overflow-hidden flex items-center justify-start">
+            <video 
+              src="/videos/dudi-laundry-hero.mp4" 
+              autoPlay muted loop playsInline preload="metadata"
+              poster="/images/dudi-laundry-hero-poster.jpg"
+              className="absolute inset-0 w-full h-full object-cover z-0"
+            />
+            <div className="absolute inset-0 bg-black/40 z-10" />
             
-            {/* Column Left (Hero + Carousel) */}
-            <div className="lg:col-span-8 flex flex-col gap-6 w-full">
-              
-              {/* Hero Section */}
-              <div className="w-full bg-gradient-to-r from-blue-50 to-indigo-50/30 rounded-3xl p-6 md:p-8 flex flex-col gap-6 items-start border border-blue-100/50 shadow-3xs">
-                <div className="flex flex-col gap-1.5 max-w-[800px] text-left">
-                  <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-tight">
-                    Xin chào! 👋
-                  </h1>
-                  <p className="text-slate-600 text-xs md:text-sm font-medium leading-relaxed">
-                    Chào mừng bạn đến với DUDI Laundry — dịch vụ giặt ủi tiện lợi, chất lượng vượt trội.
-                  </p>
-                </div>
-                <div className="flex flex-row flex-wrap gap-2.5 items-center justify-start w-full">
-                  <button 
+            <div className="relative z-20 w-full max-w-[1440px] mx-auto px-6 md:px-12 xl:px-16 flex flex-col items-start pt-[68px]">
+              <div className="max-w-[560px] flex flex-col gap-4 text-left">
+                <h1 className="text-4xl md:text-5xl lg:text-[64px] font-black text-white leading-[1.1] uppercase tracking-tight">
+                  GIẶT ỦI, GIAO TẬN NƠI.
+                </h1>
+                <p className="text-white/90 text-sm md:text-base font-medium leading-relaxed max-w-[480px]">
+                  DUDI nhận đồ tận nhà, chăm sóc đúng yêu cầu và giao lại đúng hẹn.<br />
+                  Đặt lịch trong vài phút và theo dõi toàn bộ quá trình xử lý.
+                </p>
+
+                {/* Action Wrapper */}
+                <div className="w-full max-w-[490px] flex flex-col items-stretch gap-3 mt-4">
+                  {/* Booking Bar */}
+                  <div 
+                    className="bg-white rounded-xl flex items-center w-full p-1 shadow-lg cursor-pointer hover:shadow-xl transition-all" 
                     onClick={() => navigate('/customer/pickup')}
-                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center justify-center gap-1.5 cursor-pointer border-0 shadow-xs animate-none"
                   >
-                    <Truck size={14} className="animate-none" />
-                    Đặt lịch lấy đồ tận nơi
-                  </button>
-                  <button
-                    onClick={() => navigate('/customer/track')}
-                    className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 shadow-xs transition-colors inline-flex items-center justify-center cursor-pointer"
-                  >
-                    Tra cứu đơn
-                  </button>
-                  <button
-                    onClick={() => navigate('/customer/loyalty')}
-                    className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 shadow-xs transition-colors inline-flex items-center justify-center cursor-pointer"
-                  >
-                    Ví tích điểm
-                  </button>
-                  <button
-                    onClick={() => navigate('/customer/orders')}
-                    className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 shadow-xs transition-colors inline-flex items-center justify-center cursor-pointer"
-                  >
-                    Lịch sử giặt ủi
-                  </button>
-                  <button
-                    onClick={() => navigate('/customer/support')}
-                    className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-black border border-blue-200 shadow-xs transition-colors inline-flex items-center justify-center cursor-pointer"
-                  >
-                    Hỗ trợ / Zalo
-                  </button>
-                </div>
-              </div>
-
-              {/* Promo Carousel Banner */}
-              <div className={`w-full bg-gradient-to-r ${BANNERS[currentBannerIndex].bgGradient} border border-slate-200/60 rounded-3xl p-5 shadow-xs relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group`}>
-                <div className="flex-1 flex flex-col gap-1.5 text-left">
-                  <div>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${BANNERS[currentBannerIndex].badgeColor}`}>
-                      {BANNERS[currentBannerIndex].badge}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-extrabold text-slate-900 mt-1">{BANNERS[currentBannerIndex].title}</h3>
-                  <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-[480px]">
-                    {BANNERS[currentBannerIndex].desc}
-                  </p>
-                </div>
-
-                {/* Slider Dots & Buttons */}
-                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                  {/* Dots */}
-                  <div className="flex gap-1.5">
-                    {BANNERS.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setCurrentBannerIndex(idx)}
-                        className={`w-2 h-2 rounded-full cursor-pointer transition-all ${
-                          currentBannerIndex === idx ? 'bg-slate-700 w-4' : 'bg-slate-300 hover:bg-slate-400'
-                        }`}
-                      />
-                    ))}
+                    <div className="flex-1 px-4 py-2 flex flex-col border-r border-slate-100">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Dịch vụ</span>
+                      <span className="text-sm font-extrabold text-slate-800">Giặt sấy</span>
+                    </div>
+                    <div className="flex-1 px-4 py-2 flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Lấy đồ</span>
+                      <span className="text-sm font-extrabold text-slate-800">Chọn thời gian</span>
+                    </div>
+                    <div className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center mx-1 transition-colors">
+                      <ArrowRight size={20} />
+                    </div>
                   </div>
 
-                  {/* Nav buttons */}
-                  <div className="flex bg-white/80 border border-slate-200/80 rounded-xl p-0.5 gap-0.5">
-                    <button
-                      onClick={prevBanner}
-                      className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0 animate-none"
-                    >
-                      <ChevronLeft size={14} className="animate-none" />
-                    </button>
-                    <button
-                      onClick={nextBanner}
-                      className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0 animate-none"
-                    >
-                      <ChevronRight size={14} className="animate-none" />
+                  {/* Small links */}
+                  <div className="flex flex-wrap items-center justify-start gap-x-5 gap-y-2 px-1">
+                    <button onClick={() => navigate('/customer/track')} className="text-xs font-bold text-white hover:text-white/70 transition-colors border-0 bg-transparent cursor-pointer p-0">Tra cứu đơn</button>
+                    <button onClick={() => navigate('/customer/loyalty')} className="text-xs font-bold text-white hover:text-white/70 transition-colors border-0 bg-transparent cursor-pointer p-0">Ví tích điểm</button>
+                    <button onClick={() => navigate('/customer/orders')} className="text-xs font-bold text-white hover:text-white/70 transition-colors border-0 bg-transparent cursor-pointer p-0">Lịch sử giặt ủi</button>
+                    <button onClick={() => navigate('/customer/support')} className="text-xs font-bold text-white hover:text-white/70 transition-colors border-0 bg-transparent cursor-pointer p-0">Hỗ trợ / Zalo</button>
+                  </div>
+
+                  {/* Floating order status */}
+                  <div className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 flex flex-wrap md:flex-nowrap items-center justify-between gap-3 text-white shadow-lg mt-2">
+                    <div className="flex flex-col gap-0.5 text-left shrink-0">
+                      <span className="text-xs font-extrabold tracking-wider">Đơn DUDI-125</span>
+                      <span className="text-[10px] text-white/70">Dự kiến hoàn tất 18:00</span>
+                    </div>
+                    <div className="flex-1 flex justify-start md:justify-center min-w-[80px]">
+                      <span className="px-2.5 py-1 bg-white/20 rounded-md text-[10px] font-bold whitespace-nowrap">Đang giặt sấy</span>
+                    </div>
+                    <button onClick={() => navigate('/customer/track?orderId=DUDI-125')} className="text-xs font-bold hover:text-blue-200 transition-colors flex items-center justify-end gap-1 cursor-pointer border-0 bg-transparent text-white p-0 shrink-0">
+                      Xem tiến độ <ArrowRight size={12} />
                     </button>
                   </div>
                 </div>
               </div>
-
             </div>
 
-            {/* Column Right (Cards) */}
-            <div className="lg:col-span-4 flex flex-col gap-5 w-full">
-              
-              {/* Thẻ ví tích điểm */}
+            {/* Trust bar at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/30 backdrop-blur-sm border-t border-white/10">
+              <div className="max-w-[1440px] mx-auto px-6 md:px-12 xl:px-16 py-3 flex flex-wrap items-center justify-start md:justify-between gap-x-6 gap-y-2 text-[10px] sm:text-[11px] font-bold text-white/80 uppercase tracking-wider">
+                <span>Nhận đồ tận nơi</span>
+                <span className="hidden md:inline">·</span>
+                <span>Theo dõi đơn trực tuyến</span>
+                <span className="hidden md:inline">·</span>
+                <span>Hỗ trợ qua Zalo</span>
+                <span className="hidden md:inline">·</span>
+                <span>Hoạt động 07:00–21:00</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 1 */}
+          <section className="flex flex-col md:flex-row w-full bg-white overflow-hidden reveal-hidden reveal-from-bottom">
+            <div className="w-full md:w-1/2 min-h-[300px] md:min-h-[400px] bg-slate-100 img-zoom-container relative">
               <div 
-                onClick={() => navigate('/customer/loyalty')}
-                className="w-full bg-gradient-to-br from-slate-850 to-slate-950 text-white rounded-3xl p-5 shadow-sm flex flex-col gap-4 relative overflow-hidden group cursor-pointer hover:shadow-md transition-all border border-slate-800"
-              >
-                {/* Background glow decorator */}
-                <div className="absolute -top-12 -right-12 w-24 h-24 bg-yellow-400/10 rounded-full blur-xl transition-all group-hover:scale-125"></div>
-                
-                <div className="flex justify-between items-center z-10">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 bg-slate-800/80 text-yellow-400 rounded-xl border border-slate-700/50">
-                      <Wallet size={16} className="animate-none" />
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Thẻ thành viên</span>
-                  </div>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-300 border border-yellow-400/30">
-                    Bạc (Silver)
-                  </span>
+                className="absolute inset-0 bg-cover bg-center img-zoom reveal-hidden reveal-from-left" 
+                style={{ backgroundImage: "url('/images/customer/wash-fold.jpg')" }}
+              ></div>
+              <div className="absolute inset-0 flex items-center justify-center text-slate-300 z-10">
+                <Sparkles size={80} opacity={0.2} strokeWidth={1} />
+              </div>
+            </div>
+            <div className="w-full md:w-1/2 flex items-center p-8 md:p-16 lg:p-24 bg-white z-10 reveal-hidden reveal-from-right stagger-1">
+              <div className="max-w-[480px] flex flex-col gap-4 text-left relative">
+                <span className="absolute -top-10 -left-6 text-[100px] font-black text-blue-50 opacity-50 z-0 pointer-events-none select-none">01</span>
+                <h2 className="relative text-3xl lg:text-4xl font-black text-slate-900 tracking-tight z-10">Giặt sấy hằng ngày</h2>
+                <p className="relative text-slate-600 text-sm leading-relaxed z-10">
+                  Giặt sấy tiêu chuẩn sử dụng máy giặt sấy công nghệ cao, quần áo được phân loại kỹ, giặt bằng nước sạch và sấy khô hoàn toàn ở nhiệt độ thích hợp. Phù hợp cho quần áo mặc hàng ngày, đồ cotton, đồ lanh, khăn tắm.
+                </p>
+                <div className="relative flex flex-wrap items-center gap-4 mt-2 z-10">
+                  <button onClick={() => navigate('/customer/pickup?service=giat-say')} className="group btn-primary-hover flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 cursor-pointer border-0">
+                    Đặt dịch vụ
+                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                  </button>
+                  <button onClick={() => setSelectedService(SERVICES.find(s => s.id === 'giat-say'))} className="group px-4 py-3 text-slate-700 font-bold hover:text-blue-600 transition-colors cursor-pointer border-0 bg-transparent">
+                    <span className="link-underline">Xem chi tiết</span>
+                  </button>
                 </div>
+              </div>
+            </div>
+          </section>
 
-                <div className="flex flex-col gap-0.5 text-left z-10">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Tài khoản</span>
-                  <span className="text-base font-extrabold tracking-wide">Nguyễn Văn An</span>
-                  <span className="text-2xl font-black text-yellow-400 mt-1">320 <span className="text-xs font-bold text-slate-300">điểm</span></span>
+          {/* Section 2 */}
+          <section className="flex flex-col-reverse md:flex-row w-full bg-slate-50 overflow-hidden reveal-hidden reveal-from-bottom stagger-1">
+            <div className="w-full md:w-1/2 flex items-center justify-end p-8 md:p-16 lg:p-24 bg-slate-50 z-10 reveal-hidden reveal-from-left stagger-1">
+              <div className="max-w-[480px] flex flex-col gap-4 text-left relative">
+                <span className="absolute -top-10 -left-6 text-[100px] font-black text-blue-500 opacity-5 z-0 pointer-events-none select-none">02</span>
+                <h2 className="relative text-3xl lg:text-4xl font-black text-slate-900 tracking-tight z-10">Giặt hấp & chăm sóc cao cấp</h2>
+                <p className="relative text-slate-600 text-sm leading-relaxed z-10">
+                  Bảo vệ tối ưu sợi vải cao cấp nhạy cảm, sử dụng dung môi sinh học thân thiện môi trường để loại bỏ vết bẩn cứng đầu mà không gây co rút hay bạc màu. Dành riêng cho đồ vest, áo khoác dạ, đầm lụa, áo dài.
+                </p>
+                <div className="relative flex flex-wrap items-center gap-4 mt-2 z-10">
+                  <button onClick={() => navigate('/customer/pickup?service=giat-hap')} className="group btn-primary-hover flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 cursor-pointer border-0">
+                    Đặt dịch vụ
+                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                  </button>
+                  <button onClick={() => setSelectedService(SERVICES.find(s => s.id === 'giat-hap'))} className="group px-4 py-3 text-slate-700 font-bold hover:text-blue-600 transition-colors cursor-pointer border-0 bg-transparent">
+                    <span className="link-underline">Xem chi tiết</span>
+                  </button>
                 </div>
+              </div>
+            </div>
+            <div className="w-full md:w-1/2 min-h-[300px] md:min-h-[400px] bg-slate-200 img-zoom-container relative">
+              <div 
+                className="absolute inset-0 bg-cover bg-center img-zoom reveal-hidden reveal-from-right" 
+                style={{ backgroundImage: "url('/images/customer/dry-cleaning.jpg')" }}
+              ></div>
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 z-10">
+                <Star size={80} opacity={0.2} strokeWidth={1} />
+              </div>
+            </div>
+          </section>
 
-                {/* Progress bar to next tier */}
-                <div className="flex flex-col gap-1.5 border-t border-slate-800/80 pt-3 z-10">
-                  <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold">
-                    <span>Lên hạng Vàng (Gold)</span>
-                    <span>320 / 500 điểm</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700/40">
-                    <div className="h-full bg-gradient-to-r from-yellow-400 to-amber-300 rounded-full" style={{ width: '64%' }}></div>
+          {/* Section 3 */}
+          <section className="flex flex-col md:flex-row w-full bg-white relative overflow-hidden reveal-hidden reveal-from-bottom stagger-1">
+            <div className="w-full md:w-1/2 min-h-[300px] md:min-h-[400px] md:absolute md:inset-0 bg-slate-100 img-zoom-container">
+              <div 
+                className="absolute inset-0 bg-cover bg-center img-zoom reveal-hidden reveal-from-left" 
+                style={{ backgroundImage: "url('/images/customer/shoes-bedding.jpg')" }}
+              ></div>
+              <div className="absolute inset-0 flex items-center justify-center text-slate-300 z-10">
+                <Shirt size={80} opacity={0.2} strokeWidth={1} />
+              </div>
+            </div>
+            <div className="max-w-[1440px] mx-auto w-full flex justify-end z-10 relative">
+              <div className="w-full md:w-1/2 p-8 md:p-16 lg:p-24 flex flex-col gap-4 text-left bg-white/95 md:bg-white/80 md:backdrop-blur-md reveal-hidden reveal-from-right stagger-1">
+                <div className="relative">
+                  <span className="absolute -top-10 -left-6 text-[100px] font-black text-blue-50 opacity-50 z-0 pointer-events-none select-none">03</span>
+                  <h2 className="relative text-3xl lg:text-4xl font-black text-slate-900 tracking-tight z-10">Giày, túi, chăn drap & đồ gia dụng</h2>
+                  <p className="relative text-slate-600 text-sm leading-relaxed z-10 mt-4">
+                    Chăm sóc thủ công chuyên sâu cho giày thể thao, giày da, túi hiệu. Quy trình làm sạch tỉ mỉ kết hợp sấy Ozon. Giặt sạch, sấy khô hoàn toàn chăn drap, rèm cửa khổ lớn.
+                  </p>
+                  <div className="relative flex flex-wrap items-center gap-4 mt-6 z-10">
+                    <button onClick={() => navigate('/customer/pickup?service=giat-giay-tui')} className="group btn-primary-hover flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 cursor-pointer border-0">
+                      Đặt dịch vụ
+                      <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                    </button>
+                    <button onClick={() => setSelectedService(SERVICES.find(s => s.id === 'giat-giay-tui'))} className="group px-4 py-3 text-slate-700 font-bold hover:text-blue-600 transition-colors cursor-pointer border-0 bg-transparent">
+                      <span className="link-underline">Xem chi tiết</span>
+                    </button>
                   </div>
                 </div>
               </div>
+            </div>
+          </section>
 
-              {/* Widget Đơn đang xử lý */}
-              <div className="w-full bg-blue-50/40 border border-blue-100 rounded-3xl p-5 shadow-2xs flex flex-col gap-3 relative overflow-hidden text-left animate-slideDown">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
-                    <strong className="text-xs font-black text-slate-900 tracking-wide">Đơn hàng: DUDI-125</strong>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-100 text-blue-700">
-                    Đang giặt sấy
-                  </span>
+          {/* Marquee Branding Strip */}
+          <section className="w-full bg-blue-900 py-4 overflow-hidden border-y border-blue-800 reveal-hidden reveal-from-bottom">
+            <div className="marquee-content whitespace-nowrap flex items-center gap-8 text-[11px] sm:text-xs font-black text-white/90 uppercase tracking-[0.25em]">
+              <span>Nhận đồ tận nơi</span><span className="text-blue-500">•</span>
+              <span>Phân loại kỹ</span><span className="text-blue-500">•</span>
+              <span>Giặt đúng yêu cầu</span><span className="text-blue-500">•</span>
+              <span>Giao đúng hẹn</span><span className="text-blue-500">•</span>
+              <span>Nhận đồ tận nơi</span><span className="text-blue-500">•</span>
+              <span>Phân loại kỹ</span><span className="text-blue-500">•</span>
+              <span>Giặt đúng yêu cầu</span><span className="text-blue-500">•</span>
+              <span>Giao đúng hẹn</span><span className="text-blue-500">•</span>
+              <span>Nhận đồ tận nơi</span><span className="text-blue-500">•</span>
+              <span>Phân loại kỹ</span><span className="text-blue-500">•</span>
+              <span>Giặt đúng yêu cầu</span><span className="text-blue-500">•</span>
+              <span>Giao đúng hẹn</span><span className="text-blue-500">•</span>
+            </div>
+          </section>
+
+          {/* Member Strip */}
+          <section id="member-strip" className="w-full bg-blue-600 text-white py-10 reveal-hidden reveal-from-bottom">
+            <div className="max-w-[1440px] mx-auto px-6 md:px-12 xl:px-16 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                  <User size={28} />
                 </div>
-
-                <div className="flex items-center gap-3.5 my-0.5">
-                  <div className="w-10 h-10 bg-white border border-blue-100 rounded-xl flex items-center justify-center shrink-0 text-blue-600 shadow-3xs">
-                    <ShoppingBag size={18} className="stroke-[1.8] animate-none" />
+                <div className="flex flex-col text-left">
+                  <span className="text-[11px] text-blue-200 font-bold uppercase tracking-widest mb-0.5">Thành viên</span>
+                  <span className="text-xl font-black tracking-wide">Nguyễn Văn An</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-6 md:gap-10 w-full lg:w-auto">
+                <div className="flex flex-col text-left">
+                  <span className="text-[10px] text-blue-200 uppercase font-bold tracking-wider mb-0.5">Hạng hiện tại</span>
+                  <span className="text-base font-extrabold text-yellow-300">Bạc (Silver)</span>
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-[10px] text-blue-200 uppercase font-bold tracking-wider mb-0.5">Ví tích điểm</span>
+                  <span className="text-base font-extrabold">{memberPoints} điểm</span>
+                </div>
+                <div className="flex flex-col flex-1 min-w-[200px] text-left">
+                  <div className="flex justify-between text-[10px] text-blue-200 font-bold uppercase tracking-wider mb-1.5">
+                    <span>Lên hạng Vàng</span>
+                    <span>320/500</span>
                   </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider flex items-center gap-1">
-                      <Clock size={11} className="text-slate-400 animate-none" />
-                      Giao trả dự kiến
-                    </span>
-                    <span className="font-extrabold text-slate-850 text-xs">18:00 hôm nay</span>
+                  <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                    <div className="h-full bg-yellow-400 progress-bar" style={{ width: `${progressWidth}%` }}></div>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => navigate('/customer/track?orderId=DUDI-125')}
-                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs shadow-blue-500/10 cursor-pointer border-0 flex items-center justify-center gap-1"
-                >
-                  <span>Theo dõi đơn</span>
-                  <ArrowRight size={13} className="animate-none" />
+                
+                <button onClick={() => navigate('/customer/loyalty')} className="shrink-0 px-5 py-2.5 bg-white text-blue-600 font-bold text-xs rounded-xl shadow-sm hover:bg-blue-50 transition cursor-pointer border-0 w-full sm:w-auto mt-2 sm:mt-0">
+                  Xem ví điểm
                 </button>
               </div>
-
             </div>
-
-          </div>
-
-          {/* Services Section */}
-          <div className="flex flex-col gap-5">
-            <h2 className="text-[20px] font-extrabold text-slate-900 tracking-tight text-left">
-              Dịch vụ nổi bật
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {SERVICES.map((s) => (
-                <div key={s.id} className="bg-white border border-slate-200 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all group h-full overflow-hidden">
-                  <div className="p-6">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${s.bgIcon}`}>
-                      {s.icon}
-                    </div>
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <h3 className="text-lg font-bold text-slate-900">{s.title}</h3>
-                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                        s.badge === 'Phổ biến' ? 'bg-blue-50 text-blue-600' :
-                        s.badge === 'Premium' ? 'bg-amber-50 text-amber-600' :
-                        'bg-emerald-50 text-emerald-600'
-                      }`}>
-                        {s.badge}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-600 leading-relaxed mb-4 text-left">
-                      {s.desc}
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedService(s)}
-                    className="w-full py-3 bg-slate-50 border-t border-slate-100 text-slate-650 hover:text-blue-600 hover:bg-slate-100/80 transition-colors text-sm font-bold text-center block rounded-b-xl cursor-pointer border-0"
-                  >
-                    Xem chi tiết
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          </section>
 
           {/* Stores Section */}
-          <div className="flex flex-col gap-5">
-            <h2 className="text-[20px] font-extrabold text-slate-900 tracking-tight text-left">
-              Cửa hàng gần bạn
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {BRANCHES.map((b) => (
-                <div key={b.id} className="bg-white border border-slate-200 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all group h-full overflow-hidden">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center shrink-0">
-                        <MapPin size={20} className="animate-none" />
-                      </div>
-                      <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full shrink-0 ${
-                        b.status === 'open' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
-                      }`}>
-                        {b.statusLabel}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900 mb-1 group-hover:text-blue-600 transition-colors text-left">{b.name}</h3>
-                    <p className="text-xs text-slate-500 mb-4 leading-normal text-left">{b.address}</p>
-                    
-                    <div className="flex items-center gap-1.5 text-xs text-slate-650 font-medium">
-                      <Clock size={14} className="text-slate-400 animate-none" />
-                      <span>{b.hours}</span>
+          <section className="w-full bg-[#F3F6FA] text-slate-900">
+            <div className="w-full max-w-[1440px] mx-auto flex flex-col md:flex-row min-h-[600px]">
+              
+              {/* Left Column - Map & Search */}
+              <div className="w-full md:w-[45%] relative border-b md:border-b-0 md:border-r border-slate-200 overflow-hidden flex flex-col justify-center p-8 md:p-12 xl:p-16 bg-[#E5EEF5] reveal-hidden reveal-from-left">
+                {/* CSS Map Pattern */}
+                <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(to right, #94a3b8 1px, transparent 1px), linear-gradient(to bottom, #94a3b8 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+                <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #94a3b8 1px, transparent 0)', backgroundSize: '20px 20px' }}></div>
+                
+                {/* Simulated Pins */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {/* Q1 */}
+                  <div className={`absolute top-[45%] left-[25%] transition-all duration-300 ease-out flex flex-col items-center ${hoveredBranch === 'q1' ? 'scale-125 z-10 -translate-y-1' : 'scale-100 opacity-70'}`}>
+                    <div className="relative">
+                      <MapPin size={32} strokeWidth={1.5} className={hoveredBranch === 'q1' ? 'text-blue-600 drop-shadow-[0_4px_8px_rgba(37,99,235,0.4)]' : 'text-slate-400'} fill={hoveredBranch === 'q1' ? '#eff6ff' : 'white'} />
+                      {BRANCHES.find(b => b.id === 'q1')?.status === 'open' && <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ${hoveredBranch === 'q1' ? 'animate-pulse' : ''}`} />}
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setSelectedBranch(b)}
-                    className="w-full py-3 bg-slate-50 border-t border-slate-100 text-slate-650 hover:text-blue-600 hover:bg-slate-100/80 transition-colors text-sm font-bold text-center block rounded-b-xl cursor-pointer border-0"
-                  >
-                    Xem chi tiết
-                  </button>
+                  {/* Q3 */}
+                  <div className={`absolute top-[35%] left-[55%] transition-all duration-300 ease-out flex flex-col items-center ${hoveredBranch === 'q3' ? 'scale-125 z-10 -translate-y-1' : 'scale-100 opacity-70'}`}>
+                    <div className="relative">
+                      <MapPin size={32} strokeWidth={1.5} className={hoveredBranch === 'q3' ? 'text-blue-600 drop-shadow-[0_4px_8px_rgba(37,99,235,0.4)]' : 'text-slate-400'} fill={hoveredBranch === 'q3' ? '#eff6ff' : 'white'} />
+                      {BRANCHES.find(b => b.id === 'q3')?.status === 'open' && <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ${hoveredBranch === 'q3' ? 'animate-pulse' : ''}`} />}
+                    </div>
+                  </div>
+                  {/* Thu Duc */}
+                  <div className={`absolute top-[65%] left-[65%] transition-all duration-300 ease-out flex flex-col items-center ${hoveredBranch === 'thu_duc' ? 'scale-125 z-10 -translate-y-1' : 'scale-100 opacity-70'}`}>
+                    <div className="relative">
+                      <MapPin size={32} strokeWidth={1.5} className={hoveredBranch === 'thu_duc' ? 'text-blue-600 drop-shadow-[0_4px_8px_rgba(37,99,235,0.4)]' : 'text-slate-400'} fill={hoveredBranch === 'thu_duc' ? '#eff6ff' : 'white'} />
+                    </div>
+                  </div>
                 </div>
-              ))}
+
+                <div className="relative z-10 text-left">
+                  <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">DUDI gần bạn</h2>
+                  <p className="text-slate-600 mt-4 font-medium text-sm leading-relaxed max-w-sm">
+                    Tìm kiếm chi nhánh gần nhất để gửi đồ hoặc trải nghiệm dịch vụ chăm sóc cao cấp tại cửa hàng.
+                  </p>
+                  <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full max-w-md pointer-events-auto">
+                    <input 
+                      type="text" 
+                      placeholder="Nhập quận hoặc địa chỉ..." 
+                      className="w-full px-5 py-3.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm font-medium shadow-sm"
+                    />
+                    <button className="w-full sm:w-auto px-6 py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-0.5 transition-all whitespace-nowrap cursor-pointer border-0">
+                      Tìm cửa hàng
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Branch List */}
+              <div className="w-full md:w-[55%] p-8 md:p-12 xl:p-16 flex flex-col justify-center">
+                <div className="flex flex-col gap-4 w-full">
+                  {BRANCHES.map((b, i) => (
+                    <div 
+                      key={b.id} 
+                      className={`reveal-hidden reveal-from-bottom stagger-${i + 1}`}
+                    >
+                      <div
+                        onMouseEnter={() => setHoveredBranch(b.id)}
+                        onMouseLeave={() => setHoveredBranch(null)}
+                        className={`group relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden ${
+                          hoveredBranch === b.id 
+                            ? 'bg-[#EAF2FF] border-blue-500 shadow-md transform -translate-y-0.5' 
+                            : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm transform translate-y-0'
+                        }`}
+                      >
+                        <div className="flex flex-col gap-1.5 z-10 text-left">
+                          <div className="flex items-center gap-3">
+                            <h3 className={`text-base font-bold transition-colors ${hoveredBranch === b.id ? 'text-blue-700' : 'text-slate-900'}`}>{b.name}</h3>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full flex items-center gap-1.5 border ${
+                              b.status === 'open' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'
+                            }`}>
+                              {b.status === 'open' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />}
+                              {b.statusLabel}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">{b.address}</p>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium mt-1">
+                            <Clock size={12} className="animate-none" />
+                            <span>{b.hours}</span>
+                          </div>
+                        </div>
+                        
+                        <button 
+                          onClick={() => setSelectedBranch(b)}
+                          className={`shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold transition-all border-0 z-10 ${
+                            hoveredBranch === b.id 
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 cursor-pointer' 
+                              : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 cursor-pointer'
+                          }`}
+                        >
+                          Xem chi tiết
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
         </>
       )}
 
@@ -428,10 +616,8 @@ export default function CustomerHome() {
       {/* 1. Service Detail Modal */}
       {selectedService && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={() => setSelectedService(null)} />
           
-          {/* Modal Card */}
           <div className="relative bg-white border border-slate-200 rounded-3xl p-6 shadow-xl max-w-md w-full z-10 flex flex-col gap-4 animate-scaleUp">
             <div className="flex items-start gap-4 text-left">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${selectedService.bgIcon}`}>
@@ -495,12 +681,10 @@ export default function CustomerHome() {
       {/* 2. Branch Detail Modal */}
       {selectedBranch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={() => setSelectedBranch(null)} />
           
-          {/* Modal Card */}
-          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 shadow-xl max-w-md w-full z-10 flex flex-col gap-4 animate-scaleUp">
-            <div className="flex items-start gap-4 text-left">
+          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 shadow-xl max-w-2xl w-full z-10 flex flex-col gap-4 animate-scaleUp max-h-[90vh]">
+            <div className="flex items-start gap-4 text-left shrink-0">
               <div className="w-12 h-12 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center shrink-0">
                 <MapPin size={24} className="animate-none" />
               </div>
@@ -517,44 +701,99 @@ export default function CustomerHome() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-medium text-slate-700">
-              <div className="flex flex-col gap-0.5 text-left">
-                <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Địa chỉ cửa hàng</span>
-                <span className="text-slate-800 font-bold leading-normal">{selectedBranch.address}</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 border-t border-slate-200/60 pt-3 mt-1 text-left">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Giờ hoạt động</span>
-                  <span className="font-bold text-slate-800 flex items-center gap-1">
-                    <Clock size={12} className="text-slate-400 animate-none" />
-                    {selectedBranch.hours}
-                  </span>
+            <div className="overflow-y-auto pr-1 flex flex-col gap-5 flex-1 min-h-0" style={{ margin: '0 -4px', padding: '0 4px' }}>
+              <div className="flex flex-col gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-medium text-slate-700 shrink-0">
+                <div className="flex flex-col gap-0.5 text-left">
+                  <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Địa chỉ cửa hàng</span>
+                  <span className="text-slate-800 font-bold leading-normal">{selectedBranch.address}</span>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Hotline liên hệ</span>
-                  <a href={`tel:${selectedBranch.hotline.replace(/\s+/g, '')}`} className="font-extrabold text-blue-600 hover:underline">
-                    {selectedBranch.hotline}
-                  </a>
+                
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-200/60 pt-3 mt-1 text-left">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Giờ hoạt động</span>
+                    <span className="font-bold text-slate-800 flex items-center gap-1">
+                      <Clock size={12} className="text-slate-400 animate-none" />
+                      {selectedBranch.hours}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Hotline liên hệ</span>
+                    <a href={`tel:${selectedBranch.hotline.replace(/\s+/g, '')}`} className="font-extrabold text-blue-600 hover:underline">
+                      {selectedBranch.hotline}
+                    </a>
+                  </div>
                 </div>
               </div>
+
+              <div className="flex flex-col gap-2 text-left shrink-0">
+                <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Dịch vụ tại chi nhánh</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedBranch.services.map((svc: string, idx: number) => (
+                    <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-[11px] font-bold">{svc}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left shrink-0">
+                <div className="flex flex-col gap-1">
+                  <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Thời gian xử lý</span>
+                  <span className="text-xs font-bold text-slate-800">{selectedBranch.processingTime}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Nhận/giao tận nơi</span>
+                  <span className="text-xs font-bold text-slate-800">{selectedBranch.coverage}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 text-left border-t border-slate-100 pt-4 shrink-0">
+                <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Tiện ích</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedBranch.amenities.map((item: string, idx: number) => (
+                    <span key={idx} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-[11px] font-medium">{item}</span>
+                  ))}
+                </div>
+              </div>
+
+              {selectedBranch.note && (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-700 font-semibold flex items-center gap-1.5 text-left shrink-0">
+                  <Sparkles size={14} className="text-amber-500 shrink-0 animate-none" />
+                  <span>{selectedBranch.note}</span>
+                </div>
+              )}
+
+              {selectedBranch.status === 'closed' && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-[11px] text-red-700 font-semibold flex items-center gap-1.5 text-left shrink-0">
+                  <AlertTriangle size={14} className="text-red-500 shrink-0 animate-none" />
+                  <span>Chi nhánh hiện chưa nhận đơn mới.</span>
+                </div>
+              )}
             </div>
 
-            {selectedBranch.status === 'closed' && (
-              <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-[11px] text-red-700 font-semibold flex items-center gap-1.5 text-left">
-                <AlertTriangle size={14} className="text-red-500 shrink-0 animate-none" />
-                <span>Chi nhánh hiện tại đã đóng cửa. Bạn không thể đặt lấy đồ từ chi nhánh này lúc này.</span>
-              </div>
-            )}
-
-            <div className="flex gap-3 justify-end pt-2">
+            <div className="flex flex-wrap gap-2 justify-end pt-3 border-t border-slate-100 shrink-0 mt-auto">
               <button
                 type="button"
                 onClick={() => setSelectedBranch(null)}
-                className="px-4 py-2 border border-slate-250 hover:bg-slate-50 text-slate-650 font-bold text-xs rounded-xl transition-all cursor-pointer bg-white"
+                className="px-4 py-2 hover:bg-slate-50 text-slate-500 font-bold text-xs rounded-xl transition-all cursor-pointer bg-white mr-auto border-0"
               >
                 Đóng
               </button>
+              
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedBranch.address)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border-0 no-underline flex items-center"
+              >
+                Chỉ đường
+              </a>
+              
+              <a
+                href={`tel:${selectedBranch.hotline.replace(/\s+/g, '')}`}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border-0 no-underline flex items-center"
+              >
+                Gọi cửa hàng
+              </a>
+              
               <button
                 type="button"
                 disabled={selectedBranch.status === 'closed'}
@@ -562,7 +801,7 @@ export default function CustomerHome() {
                   setSelectedBranch(null);
                   navigate(`/customer/pickup?branch=${selectedBranch.id}`);
                 }}
-                className={`px-5 py-2.5 font-bold text-xs rounded-xl transition-all border-0 shadow-sm ${
+                className={`px-5 py-2.5 font-bold text-xs rounded-xl transition-all border-0 shadow-sm flex items-center ${
                   selectedBranch.status === 'closed'
                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                     : 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-blue-500/10'

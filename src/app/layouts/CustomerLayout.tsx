@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router';
 import { Home, ClipboardList, User, HelpCircle, LogOut, ArrowLeft } from 'lucide-react';
 import AppLogo from '../../components/common/AppLogo';
@@ -7,6 +7,26 @@ export default function CustomerLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  
+  const isHome = location.pathname === '/customer' || location.pathname === '/customer/';
+
+  useEffect(() => {
+    if (!isHome) {
+      setIsScrolled(true);
+      return;
+    }
+    
+    const handleScroll = () => {
+      // Trigger header background change early (e.g. 50px down)
+      setIsScrolled(window.scrollY > 50);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isHome]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -23,14 +43,30 @@ export default function CustomerLayout() {
     }
   };
 
-  const showBackButton = location.pathname !== '/customer' && location.pathname !== '/customer/';
+  const showBackButton = !isHome;
+
+  const headerBgClass = isHome && !isScrolled
+    ? "fixed top-0 w-full z-40 transition-all duration-300 bg-transparent border-b-0"
+    : "sticky top-0 w-full z-40 transition-all duration-300 bg-white border-b border-slate-100 shadow-sm";
+
+  const navLinkClass = isHome && !isScrolled 
+    ? "text-white/90 hover:text-white hover:bg-white/20" 
+    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50";
+    
+  const navActiveClass = isHome && !isScrolled
+    ? "bg-white/20 text-white"
+    : "bg-blue-50 text-blue-600";
+
+  const avatarBtnClass = isHome && !isScrolled
+    ? "bg-white/20 text-white border-white/20 hover:bg-white/30"
+    : "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100";
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col select-none">
       {/* Sticky Header with Max Width */}
-      <header className="sticky top-0 w-full bg-white border-b border-slate-100 z-30 shadow-sm">
-        <div className="max-w-[1280px] mx-auto w-full px-4 md:px-6 h-[68px] flex items-center justify-between">
-          <AppLogo />
+      <header className={headerBgClass}>
+        <div className="max-w-[1440px] mx-auto w-full px-4 md:px-6 h-[68px] flex items-center justify-between">
+          <AppLogo variant={isHome && !isScrolled ? 'light' : 'default'} />
           
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center gap-2 text-sm">
@@ -39,9 +75,7 @@ export default function CustomerLayout() {
               end
               className={({ isActive }) =>
                 `px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
+                  isActive ? navActiveClass : navLinkClass
                 }`
               }
             >
@@ -51,9 +85,7 @@ export default function CustomerLayout() {
               to="/customer/orders"
               className={({ isActive }) =>
                 `px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
+                  isActive ? navActiveClass : navLinkClass
                 }`
               }
             >
@@ -63,9 +95,7 @@ export default function CustomerLayout() {
               to="/customer/profile"
               className={({ isActive }) =>
                 `px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
+                  isActive ? navActiveClass : navLinkClass
                 }`
               }
             >
@@ -75,9 +105,7 @@ export default function CustomerLayout() {
               to="/customer/support"
               className={({ isActive }) =>
                 `px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
+                  isActive ? navActiveClass : navLinkClass
                 }`
               }
             >
@@ -89,7 +117,7 @@ export default function CustomerLayout() {
           <div className="relative">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs select-none border border-blue-100 hover:bg-blue-100 transition-colors focus:outline-none cursor-pointer"
+              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs select-none border transition-colors focus:outline-none cursor-pointer ${avatarBtnClass}`}
             >
               KH
             </button>
@@ -152,7 +180,7 @@ export default function CustomerLayout() {
 
       {/* Main Container */}
       <main className="flex-1 w-full bg-slate-50 min-w-0">
-        <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 pt-[28px] pb-24 md:pb-8">
+        <div className={`w-full mx-auto pb-24 md:pb-8 ${isHome ? 'px-0 pt-0 max-w-none' : 'max-w-[1280px] px-4 md:px-6 pt-[28px]'}`}>
           {showBackButton && (
             <button
               onClick={handleBack}
