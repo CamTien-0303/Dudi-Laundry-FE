@@ -3,20 +3,18 @@ import {
   Search,
   Filter,
   Plus,
-  Phone,
   MessageSquare,
   Award,
   ShieldAlert,
   UserCheck,
   Gift,
-  TrendingUp,
-  TrendingDown,
-  Info,
-  Clock,
   ChevronRight,
-  ClipboardList
+  Users,
+  UserPlus,
+  Clock3,
+  Sparkles
 } from 'lucide-react';
-import { PageHeader, Modal, Drawer } from '../../components/common';
+import { Modal, Drawer } from '../../components/common';
 import { useToast } from '../../components/common/Toast';
 
 interface PointLog {
@@ -59,7 +57,7 @@ const INITIAL_CUSTOMERS: Customer[] = [
     totalSpend: 3200000,
     points: 120,
     status: 'Khách thường xuyên',
-    dob: '1995-07-17', // Match current simulated date 17/07 for birthday cake icon
+    dob: '1995-07-17',
     address: '120 Đường Tôn Dật Tiên, Tân Phong, Quận 7, TP.HCM',
     preferredContact: 'Zalo',
     notes: 'Thích dùng nước xả Comfort hương ban mai. Thích sấy khô hoàn toàn.',
@@ -160,26 +158,20 @@ const INITIAL_CUSTOMERS: Customer[] = [
 export default function StoreCustomers() {
   const { toast } = useToast();
 
-  // Core database state
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
-
-  // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Tất cả');
   const [isStaffMode, setIsStaffMode] = useState(false);
 
-  // Detail Drawer state
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'orders' | 'points'>('info');
 
-  // Point Adjustment modal state
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [adjustType, setAdjustType] = useState<'add' | 'sub'>('add');
   const [adjustValue, setAdjustValue] = useState<number>(10);
   const [adjustReason, setAdjustReason] = useState('');
   const [adjustReasonError, setAdjustReasonError] = useState('');
 
-  // Add Customer modal state (simple mock flow)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addName, setAddName] = useState('');
   const [addPhone, setAddPhone] = useState('');
@@ -190,10 +182,8 @@ export default function StoreCustomers() {
   const [addPhoneError, setAddPhoneError] = useState('');
   const [addNameError, setAddNameError] = useState('');
 
-  // Find currently selected customer dynamically
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || null;
 
-  // Mask Phone number: e.g., 0912345678 -> *******678
   const formatPhone = (phone: string, mask: boolean) => {
     if (!phone) return '';
     if (mask) {
@@ -203,7 +193,15 @@ export default function StoreCustomers() {
     return phone;
   };
 
-  // Check if birthday is today
+  const getInitials = (name: string) => {
+    if (!name) return 'KH';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
   const isBirthdayToday = (dobStr: string) => {
     if (!dobStr) return false;
     const today = new Date();
@@ -214,7 +212,6 @@ export default function StoreCustomers() {
     return (today.getMonth() + 1) === dobMonth && today.getDate() === dobDay;
   };
 
-  // Handle Search & Filter logic
   const filteredCustomers = customers.filter(c => {
     const query = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -226,7 +223,12 @@ export default function StoreCustomers() {
     return matchesSearch && c.status === statusFilter;
   });
 
-  // Handle Point Adjustment
+  // Calculate Customer Insight Counts
+  const totalCount = customers.length;
+  const regularCount = customers.filter(c => c.status === 'Khách thường xuyên').length;
+  const newCount = customers.filter(c => c.status === 'Khách mới').length;
+  const inactiveCount = customers.filter(c => c.status === 'Khách đã lâu không quay lại').length;
+
   const handleConfirmPointsAdjustment = () => {
     if (!adjustReason.trim()) {
       setAdjustReasonError('Lý do điều chỉnh điểm thưởng không được để trống.');
@@ -265,12 +267,10 @@ export default function StoreCustomers() {
     toast('Điểm thưởng của khách hàng đã được cập nhật.', 'success');
   };
 
-  // Handle adding new customer
   const handleCreateCustomer = (e: React.FormEvent) => {
     e.preventDefault();
     let hasError = false;
 
-    // Reset errors
     setAddNameError('');
     setAddPhoneError('');
 
@@ -283,7 +283,6 @@ export default function StoreCustomers() {
       setAddPhoneError('Số điện thoại không được để trống.');
       hasError = true;
     } else {
-      // Validate SĐT is unique (primary key)
       const phoneExists = customers.some(c => c.phone.trim() === addPhone.trim());
       if (phoneExists) {
         setAddPhoneError('Số điện thoại này đã tồn tại trên hệ thống!');
@@ -313,7 +312,6 @@ export default function StoreCustomers() {
     setIsAddModalOpen(false);
     toast('Đã thêm khách hàng lẻ mới thành công.', 'success');
 
-    // Reset form fields
     setAddName('');
     setAddPhone('');
     setAddDob('');
@@ -323,402 +321,405 @@ export default function StoreCustomers() {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800">
-      
-      {/* Title block */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <PageHeader
-          title="Quản lý khách hàng lẻ"
-          description="Quản lý danh sách, hồ sơ cá nhân và điểm thưởng khách hàng."
-        />
-        <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 font-bold text-xs shadow-sm bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-xl transition-colors cursor-pointer border-none"
-          >
-            <Plus size={15} /> Thêm khách hàng
-          </button>
+    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-4 md:p-8 flex flex-col gap-5 text-left">
+      <style>{`
+        .reveal-hidden {
+          opacity: 1;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .reveal-hidden {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+          }
+          .reveal-hidden.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
+      {/* 1. COMPACT CRM HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-3">
+        <div>
+          <span className="text-[10px] font-mono font-bold tracking-widest text-[#2563EB] uppercase">
+            STORE CUSTOMER CRM WORKSPACE
+          </span>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
+            Quản lý hồ sơ &amp; chăm sóc khách hàng
+          </h1>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsAddModalOpen(true)}
+          className="px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer border-0 shadow-2xs flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+        >
+          <Plus size={16} />
+          <span>Thêm khách hàng mới</span>
+        </button>
       </div>
 
-      {/* Search, Filter Bar and Staff Mode Toggle */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
+      {/* 2. CUSTOMER INSIGHT STRIP (Pastel Accents: Blue / Mint / Lavender / Soft Orange-Red) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         
-        {/* Left Side: Search & Filter options */}
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1">
+        {/* Total Customers */}
+        <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-3.5 shadow-2xs flex flex-col gap-1">
+          <div className="flex justify-between items-center text-[10px] font-mono font-bold text-[#2563EB] uppercase">
+            <span>TỔNG KHÁCH HÀNG</span>
+            <Users size={14} />
+          </div>
+          <strong className="text-2xl font-black text-slate-900">{totalCount}</strong>
+          <span className="text-[10px] font-bold text-blue-700">Hồ sơ lưu trữ</span>
+        </div>
+
+        {/* Regular Customers (Mint Pastel Accent) */}
+        <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-xl p-3.5 shadow-2xs flex flex-col gap-1">
+          <div className="flex justify-between items-center text-[10px] font-mono font-bold text-emerald-800 uppercase">
+            <span>THƯỜNG XUYÊN</span>
+            <Sparkles size={14} className="text-emerald-600" />
+          </div>
+          <strong className="text-2xl font-black text-emerald-900">{regularCount}</strong>
+          <span className="text-[10px] font-bold text-emerald-700">Khách hàng thân thiết</span>
+        </div>
+
+        {/* New Customers (Lavender Pastel Accent) */}
+        <div className="bg-[#F5F3FF] border border-[#DDD6FE] rounded-xl p-3.5 shadow-2xs flex flex-col gap-1">
+          <div className="flex justify-between items-center text-[10px] font-mono font-bold text-indigo-800 uppercase">
+            <span>KHÁCH MỚI</span>
+            <UserPlus size={14} className="text-indigo-600" />
+          </div>
+          <strong className="text-2xl font-black text-indigo-900">{newCount}</strong>
+          <span className="text-[10px] font-bold text-indigo-700">Gia nhập gần đây</span>
+        </div>
+
+        {/* Inactive / Lâu chưa quay lại (Soft Orange-Red Accent) */}
+        <div className="bg-[#FFF7ED] border border-[#FFEDD5] rounded-xl p-3.5 shadow-2xs flex flex-col gap-1">
+          <div className="flex justify-between items-center text-[10px] font-mono font-bold text-amber-900 uppercase">
+            <span>CẦN CHĂM SÓC</span>
+            <Clock3 size={14} className="text-amber-600" />
+          </div>
+          <strong className="text-2xl font-black text-amber-900">{inactiveCount}</strong>
+          <span className="text-[10px] font-bold text-amber-800">Lâu chưa quay lại</span>
+        </div>
+
+      </div>
+
+      {/* 3. COMPACT SEARCH, FILTER & STAFF SECURITY TOOLBAR */}
+      <div className="bg-white border border-[#DCE5F0] rounded-xl p-3.5 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto flex-1">
           {/* Search box */}
-          <div className="relative flex-1 max-w-md">
-            <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
-              <Search size={16} />
-            </span>
+          <div className="relative w-full sm:w-80">
             <input
               type="text"
-              placeholder="Tìm theo SĐT, Tên hoặc Mã định danh..."
+              placeholder="Tìm tên, SĐT, mã khách hàng..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-xl pl-9 pr-4 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none transition-all shadow-2xs"
+              className="w-full bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-semibold rounded-md pl-8 pr-3 py-1.5 outline-none transition-all"
             />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
 
-          {/* Filter Status Selector */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 shrink-0 max-w-xs">
-            <Filter size={14} className="text-slate-400" />
+          {/* Status filter dropdown */}
+          <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#DCE5F0] rounded-md px-3 py-1.5 w-full sm:w-auto">
+            <Filter size={13} className="text-slate-400 shrink-0" />
             <select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 toast(`Lọc khách hàng theo: ${e.target.value}`, 'info');
               }}
-              className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 cursor-pointer w-full"
+              className="bg-transparent border-none outline-none text-xs font-bold text-slate-800 cursor-pointer w-full"
             >
-              <option value="Tất cả">Tất cả trạng thái</option>
-              <option value="Khách mới">Khách mới</option>
+              <option value="Tất cả">Tất cả phân loại</option>
               <option value="Khách thường xuyên">Khách thường xuyên</option>
-              <option value="Khách đã lâu không quay lại">Khách đã lâu không quay lại</option>
+              <option value="Khách mới">Khách mới</option>
+              <option value="Khách đã lâu không quay lại">Khách lâu chưa quay lại</option>
             </select>
           </div>
         </div>
 
-        {/* Right Side: Security Switch Toggle */}
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 shadow-2xs shrink-0 self-end lg:self-auto">
-          <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 select-none">
+        {/* Staff Security Mode Switch */}
+        <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#DCE5F0] rounded-md px-3 py-1.5 shrink-0 self-end sm:self-auto">
+          <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
             {isStaffMode ? (
-              <ShieldAlert size={14} className="text-amber-505 text-amber-600 animate-pulse" />
+              <ShieldAlert size={14} className="text-amber-600" />
             ) : (
-              <UserCheck size={14} className="text-emerald-500" />
+              <UserCheck size={14} className="text-emerald-600" />
             )}
             Chế độ nhân viên
           </span>
           <button
+            type="button"
             onClick={() => {
               setIsStaffMode(!isStaffMode);
               toast(
                 isStaffMode
-                  ? 'Đã tắt chế độ nhân viên. Hiển thị số điện thoại đầy đủ.'
-                  : 'Đã bật chế độ nhân viên. Số điện thoại đã được ẩn bảo mật.',
+                  ? 'Đã tắt chế độ nhân viên. Hiển thị SĐT đầy đủ.'
+                  : 'Đã bật chế độ nhân viên. SĐT đã được ẩn bảo mật.',
                 'info'
               );
             }}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              isStaffMode ? 'bg-amber-500' : 'bg-slate-200'
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              isStaffMode ? 'bg-amber-500' : 'bg-slate-300'
             }`}
-            aria-label="Toggle Staff Mode"
           >
             <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                isStaffMode ? 'translate-x-5' : 'translate-x-0'
+              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                isStaffMode ? 'translate-x-4' : 'translate-x-0'
               }`}
             />
           </button>
         </div>
+
       </div>
 
-      {/* Main Table: Desktop Table view with horizontal scroll on mobile */}
-      <div className="overflow-x-auto w-full border border-slate-200 rounded-2xl bg-white shadow-sm">
-        <table className="w-full text-left border-collapse min-w-[900px]">
-          <thead>
-            <tr className="bg-slate-50/75 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <th className="py-3 px-5">Họ tên / SĐT</th>
-              <th className="py-3 px-4">Mã khách hàng</th>
-              <th className="py-3 px-4 text-center">Tổng số đơn</th>
-              <th className="py-3 px-4 text-right">Tổng chi tiêu</th>
-              <th className="py-3 px-4 text-right">Điểm thưởng hiện tại</th>
-              <th className="py-3 px-4">Trạng thái</th>
-              <th className="py-3 px-5 text-center">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-150 text-xs">
-            {filteredCustomers.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
-                  Không tìm thấy khách hàng nào khớp với bộ lọc tìm kiếm.
-                </td>
+      {/* 4. CRM CUSTOMER TABLE (Professional Table with Initials Avatar) */}
+      <div className="bg-white border border-[#DCE5F0] rounded-xl shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-4">Khách hàng</th>
+                <th className="py-3 px-4">Mã KH</th>
+                <th className="py-3 px-4 text-center">Tổng số đơn</th>
+                <th className="py-3 px-4 text-right">Tổng chi tiêu</th>
+                <th className="py-3 px-4 text-right">Điểm tích lũy</th>
+                <th className="py-3 px-4">Phân loại</th>
+                <th className="py-3 px-4 text-right">Thao tác</th>
               </tr>
-            ) : (
-              filteredCustomers.map((c) => {
-                const birthday = isBirthdayToday(c.dob);
-                return (
-                  <tr
-                    key={c.id}
-                    onClick={() => {
-                      setSelectedCustomerId(c.id);
-                      setActiveTab('info');
-                    }}
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                  >
-                    {/* Name / Phone */}
-                    <td className="py-3.5 px-5">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                          {c.name}
-                          {birthday && (
-                            <span
-                              className="text-sm select-none cursor-help hover:scale-115 transition-transform"
-                              title="Hôm nay là sinh nhật khách hàng! 🎂"
-                            >
-                              🎂
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-semibold mt-0.5 flex items-center gap-1">
-                          <Phone size={10} className="text-slate-300" />
-                          {formatPhone(c.phone, isStaffMode)}
-                        </span>
-                      </div>
-                    </td>
+            </thead>
+            <tbody className="divide-y divide-[#DCE5F0]">
+              {filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-xs text-slate-400 font-semibold">
+                    Không tìm thấy hồ sơ khách hàng nào phù hợp.
+                  </td>
+                </tr>
+              ) : (
+                filteredCustomers.map((c) => {
+                  const birthday = isBirthdayToday(c.dob);
+                  const initials = getInitials(c.name);
 
-                    {/* Customer Code */}
-                    <td className="py-3.5 px-4 font-semibold text-slate-600">
-                      {c.id}
-                    </td>
-
-                    {/* Total Orders */}
-                    <td className="py-3.5 px-4 text-center font-bold text-slate-700">
-                      {c.totalOrders}
-                    </td>
-
-                    {/* Total Spend */}
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-800">
-                      {c.totalSpend.toLocaleString('vi-VN')}đ
-                    </td>
-
-                    {/* Loyalty Points */}
-                    <td className="py-3.5 px-4 text-right font-black text-blue-600">
-                      {c.points}
-                    </td>
-
-                    {/* Status Badge */}
-                    <td className="py-3.5 px-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                        c.status === 'Khách thường xuyên'
-                          ? 'bg-blue-50 text-blue-700 border-blue-100'
-                          : c.status === 'Khách mới'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          : 'bg-rose-50 text-rose-700 border-rose-100'
-                      }`}>
-                        {c.status}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3.5 px-5 text-center" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedCustomerId(c.id);
-                          setActiveTab('info');
-                        }}
-                        className="inline-flex items-center justify-center gap-1 py-1.5 px-3 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-xl font-bold text-[11px] transition-all cursor-pointer shadow-2xs bg-white"
-                      >
-                        Chi tiết <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Customer Detail Drawer */}
-      <Drawer
-        isOpen={selectedCustomerId !== null}
-        onClose={() => setSelectedCustomerId(null)}
-        title="Chi tiết Hồ sơ Khách hàng"
-        className="w-full max-w-md"
-      >
-        {selectedCustomer && (
-          <div className="flex flex-col h-full justify-between">
-            {/* Header info */}
-            <div>
-              <div className="flex items-center gap-4 border-b border-slate-100 pb-4 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-lg font-bold shadow-sm shrink-0 animate-fadeIn">
-                  {selectedCustomer.name.split(' ').pop()?.charAt(0) || 'K'}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-1.5 truncate">
-                    {selectedCustomer.name}
-                    {isBirthdayToday(selectedCustomer.dob) && (
-                      <span className="text-base" title="Sinh nhật hôm nay!">🎂</span>
-                    )}
-                  </h3>
-                  <div className="flex flex-wrap gap-1.5 items-center mt-1">
-                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                      {selectedCustomer.id}
-                    </span>
-                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border ${
-                      selectedCustomer.status === 'Khách thường xuyên'
-                        ? 'bg-blue-50 text-blue-700 border-blue-100'
-                        : selectedCustomer.status === 'Khách mới'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                        : 'bg-rose-50 text-rose-700 border-rose-100'
-                    }`}>
-                      {selectedCustomer.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tab Navigations */}
-              <div className="flex border-b border-slate-200 gap-4 mb-4">
-                {[
-                  { key: 'info', label: 'Thông tin' },
-                  { key: 'orders', label: `Đơn hàng (${selectedCustomer.orders.length})` },
-                  { key: 'points', label: 'Lịch sử điểm' }
-                ].map(t => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setActiveTab(t.key as any)}
-                    className={`pb-2 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === t.key
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab Contents */}
-              <div className="mt-2 min-h-[300px]">
-                
-                {/* Tab 1: Info */}
-                {activeTab === 'info' && (
-                  <div className="flex flex-col gap-4 animate-fadeIn text-xs text-slate-900">
-                    <div className="grid grid-cols-2 gap-3.5 bg-slate-50/75 p-3.5 rounded-xl border border-slate-150">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Họ và tên</span>
-                        <span className="text-xs font-bold text-slate-800 mt-0.5">{selectedCustomer.name}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Số điện thoại</span>
-                        <span className="text-xs font-bold text-slate-800 mt-0.5">
-                          {formatPhone(selectedCustomer.phone, isStaffMode)}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Ngày sinh</span>
-                        <span className="text-xs font-bold text-slate-800 mt-0.5">
-                          {selectedCustomer.dob ? new Date(selectedCustomer.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Liên hệ ưu tiên</span>
-                        <span className="text-xs font-bold text-slate-800 mt-0.5">{selectedCustomer.preferredContact}</span>
-                      </div>
-                      <div className="flex flex-col col-span-2">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Địa chỉ</span>
-                        <span className="text-xs font-medium text-slate-700 mt-0.5">{selectedCustomer.address}</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-blue-50/40 border border-blue-100/70 p-3.5 rounded-xl flex flex-col gap-1">
-                      <span className="text-xs font-bold text-blue-800 flex items-center gap-1.5">
-                        <span>💡</span> Ghi chú sở thích
-                      </span>
-                      <p className="text-xs text-blue-900/90 leading-relaxed font-semibold italic">
-                        "{selectedCustomer.notes}"
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Tab 2: Orders History */}
-                {activeTab === 'orders' && (
-                  <div className="flex flex-col gap-3 animate-fadeIn">
-                    {selectedCustomer.orders.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-10 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                        <ClipboardList size={28} className="text-slate-300 mb-2" />
-                        <span className="text-xs font-medium">Chưa có đơn hàng nào.</span>
-                      </div>
-                    ) : (
-                      selectedCustomer.orders.map((order) => (
-                        <div
-                          key={order.id}
-                          onClick={() => toast(`Chi tiết đơn hàng ${order.id}: ${order.service} - ${order.amount.toLocaleString()}đ (Giao diện giả lập)`, 'info')}
-                          className="bg-white border border-slate-150 hover:border-blue-300 p-3 rounded-xl shadow-2xs cursor-pointer transition-all flex flex-col gap-1.5 text-slate-800"
-                        >
-                          <div className="flex justify-between items-center text-[11px] font-bold">
-                            <span className="text-blue-650">{order.id}</span>
-                            <span className="text-slate-400 font-medium">{order.date}</span>
+                  return (
+                    <tr
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCustomerId(c.id);
+                        setActiveTab('info');
+                      }}
+                      className="bg-white hover:bg-[#EEF4FF]/40 transition-colors cursor-pointer group"
+                    >
+                      {/* Name with Avatar Initials & Phone */}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-[#EEF4FF] border border-[#BFDBFE] text-[#2563EB] font-bold text-xs flex items-center justify-center shrink-0">
+                            {initials}
                           </div>
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="font-semibold text-slate-700">{order.service}</span>
-                            <span className="font-bold text-slate-900">{order.amount.toLocaleString('vi-VN')}đ</span>
-                          </div>
-                          <div className="flex justify-between items-center border-t border-slate-50 pt-1.5 mt-1">
-                            <span className="text-[10px] text-slate-400">Trạng thái:</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              order.status === 'Đã hoàn thành' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                            }`}>
-                              {order.status}
+                          <div className="flex flex-col">
+                            <strong className="font-bold text-slate-900 text-xs flex items-center gap-1">
+                              {c.name}
+                              {birthday && (
+                                <span className="text-xs" title="Sinh nhật hôm nay!">🎂</span>
+                              )}
+                            </strong>
+                            <span className="text-[10px] text-slate-400 font-mono font-semibold">
+                              {formatPhone(c.phone, isStaffMode)}
                             </span>
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                )}
+                      </td>
 
-                {/* Tab 3: Points History */}
-                {activeTab === 'points' && (
-                  <div className="flex flex-col gap-3 animate-fadeIn">
-                    <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-150">
-                      <span className="text-xs font-bold text-slate-655 text-slate-600">ĐIỂM HIỆN TẠI</span>
-                      <span className="text-xs font-extrabold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-150 flex items-center gap-1">
-                        <Gift size={12} /> {selectedCustomer.points} Điểm
-                      </span>
-                    </div>
+                      {/* Customer ID */}
+                      <td className="py-3 px-4 font-mono font-semibold text-slate-600">
+                        {c.id}
+                      </td>
 
-                    <div className="flex flex-col gap-2.5 max-h-[280px] overflow-y-auto pr-1">
-                      {selectedCustomer.pointsHistory.length === 0 ? (
-                        <div className="text-center py-10 text-slate-400 text-xs">Chưa ghi nhận biến động điểm.</div>
-                      ) : (
-                        [...selectedCustomer.pointsHistory].reverse().map((log) => {
-                          const isPositive = log.points > 0;
-                          return (
-                            <div key={log.id} className="flex justify-between items-start gap-4 border-b border-slate-100 pb-2 text-slate-800">
-                              <div className="flex flex-col gap-0.5 min-w-0">
-                                <span className="text-xs font-bold text-slate-700 break-words leading-tight">{log.reason}</span>
-                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                  <Clock size={10} /> {log.date}
-                                </span>
-                              </div>
-                              <span className={`text-xs font-extrabold shrink-0 flex items-center gap-0.5 ${
-                                isPositive ? 'text-emerald-600' : 'text-rose-600'
-                              }`}>
-                                {isPositive ? (
-                                  <TrendingUp size={11} className="inline animate-bounce" />
-                                ) : (
-                                  <TrendingDown size={11} className="inline" />
-                                )}
-                                {isPositive ? `+${log.points}` : log.points}
-                              </span>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                )}
+                      {/* Total Orders */}
+                      <td className="py-3 px-4 text-center font-bold text-slate-800">
+                        {c.totalOrders} đơn
+                      </td>
+
+                      {/* Total Spend */}
+                      <td className="py-3 px-4 text-right font-mono font-black text-slate-900">
+                        {c.totalSpend.toLocaleString('vi-VN')}đ
+                      </td>
+
+                      {/* Loyalty Points */}
+                      <td className="py-3 px-4 text-right font-mono font-black text-[#2563EB]">
+                        <span className="inline-flex items-center justify-end gap-1">
+                          <Gift size={12} className="text-[#2563EB]" />
+                          {c.points} điểm
+                        </span>
+                      </td>
+
+                      {/* Status Badge */}
+                      <td className="py-3 px-4">
+                        {c.status === 'Khách thường xuyên' && (
+                          <span className="px-2.5 py-0.5 bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] rounded text-[10px] font-bold">
+                            Khách thường xuyên
+                          </span>
+                        )}
+                        {c.status === 'Khách mới' && (
+                          <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold">
+                            Khách mới
+                          </span>
+                        )}
+                        {c.status === 'Khách đã lâu không quay lại' && (
+                          <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[10px] font-bold">
+                            Lâu chưa quay lại
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Action Link */}
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCustomerId(c.id);
+                            setActiveTab('info');
+                          }}
+                          className="text-xs font-bold text-[#2563EB] hover:underline inline-flex items-center gap-0.5 bg-transparent border-0 cursor-pointer"
+                        >
+                          <span>Chi tiết</span>
+                          <ChevronRight size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 5. CUSTOMER DETAIL DRAWER */}
+      <Drawer
+        isOpen={selectedCustomerId !== null}
+        onClose={() => setSelectedCustomerId(null)}
+        title="Hồ sơ chi tiết khách hàng"
+        className="w-full sm:w-[420px]"
+      >
+        {selectedCustomer && (
+          <div className="flex flex-col gap-4 text-left text-xs p-1">
+            
+            {/* Header info */}
+            <div className="flex items-center gap-3 border-b border-[#DCE5F0] pb-3">
+              <div className="w-11 h-11 bg-[#2563EB] text-white font-bold rounded-xl flex items-center justify-center text-sm shrink-0">
+                {getInitials(selectedCustomer.name)}
+              </div>
+              <div className="min-w-0 flex flex-col">
+                <strong className="text-base font-black text-slate-900 truncate">
+                  {selectedCustomer.name}
+                  {isBirthdayToday(selectedCustomer.dob) && ' 🎂'}
+                </strong>
+                <span className="text-slate-500 font-mono text-[11px]">
+                  {selectedCustomer.id} · {formatPhone(selectedCustomer.phone, isStaffMode)}
+                </span>
               </div>
             </div>
 
-            {/* Quick Actions Panel */}
-            <div className="mt-8 border-t border-slate-150 pt-4 flex flex-col gap-2">
+            {/* Tab Navigations */}
+            <div className="flex border-b border-[#DCE5F0] gap-4">
+              {[
+                { key: 'info', label: 'Thông tin' },
+                { key: 'orders', label: `Lịch sử đơn (${selectedCustomer.orders.length})` },
+                { key: 'points', label: 'Tích điểm' }
+              ].map(t => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setActiveTab(t.key as any)}
+                  className={`pb-2 text-xs font-bold border-b-2 transition-all cursor-pointer bg-transparent ${
+                    activeTab === t.key
+                      ? 'border-[#2563EB] text-[#2563EB]'
+                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Contents */}
+            <div className="min-h-[260px]">
+              {activeTab === 'info' && (
+                <div className="flex flex-col gap-3">
+                  <div className="bg-[#F8FAFC] border border-[#DCE5F0] p-3 rounded-lg flex flex-col gap-2">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-bold">Ngày sinh:</span>
+                      <strong className="text-slate-900">{selectedCustomer.dob || 'Chưa cập nhật'}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-bold">Kênh liên hệ:</span>
+                      <strong className="text-slate-900">{selectedCustomer.preferredContact}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-bold">Địa chỉ:</span>
+                      <strong className="text-slate-900 text-right truncate max-w-[200px]">{selectedCustomer.address}</strong>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#EEF4FF] border border-[#BFDBFE] p-3 rounded-lg text-xs">
+                    <span className="font-bold text-[#2563EB]">💡 Ghi chú sở thích:</span>
+                    <p className="text-slate-800 mt-1 italic">"{selectedCustomer.notes}"</p>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'orders' && (
+                <div className="flex flex-col gap-2">
+                  {selectedCustomer.orders.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 font-semibold">Chưa có đơn hàng nào</div>
+                  ) : (
+                    selectedCustomer.orders.map(o => (
+                      <div key={o.id} className="p-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded-lg flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <strong className="font-mono text-[#2563EB]">{o.id}</strong>
+                          <span className="text-slate-600 text-[11px]">{o.service}</span>
+                        </div>
+                        <strong className="font-mono font-bold text-slate-900">{o.amount.toLocaleString('vi-VN')}đ</strong>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'points' && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center bg-[#EEF4FF] p-3 rounded-lg border border-[#BFDBFE]">
+                    <span className="font-bold text-slate-700">Điểm hiện tại:</span>
+                    <strong className="text-[#2563EB] font-mono text-base">{selectedCustomer.points} điểm</strong>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto">
+                    {selectedCustomer.pointsHistory.map(log => (
+                      <div key={log.id} className="p-2 border-b border-slate-100 flex justify-between items-center text-xs">
+                        <span className="text-slate-700 font-medium">{log.reason}</span>
+                        <strong className={log.points > 0 ? 'text-emerald-700 font-mono' : 'text-rose-600 font-mono'}>
+                          {log.points > 0 ? `+${log.points}` : log.points}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex flex-col gap-2 border-t border-[#DCE5F0] pt-3">
               <button
                 type="button"
-                onClick={() => {
-                  toast(`Giả lập: Đã gửi tin nhắn Zalo chăm sóc đến SĐT ${selectedCustomer.phone}!`, 'success');
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-xs transition-colors cursor-pointer border border-transparent"
+                onClick={() => toast(`Đã gửi tin nhắn Zalo chăm sóc đến SĐT ${selectedCustomer.phone}!`, 'success')}
+                className="w-full py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold rounded-md text-xs transition-colors cursor-pointer border-0 flex items-center justify-center gap-1.5"
               >
                 <MessageSquare size={14} /> Gửi tin nhắn Zalo
               </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -727,16 +728,17 @@ export default function StoreCustomers() {
                   setAdjustValue(10);
                   setIsAdjustModalOpen(true);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-xs transition-colors cursor-pointer bg-white"
+                className="w-full py-2 bg-white hover:bg-slate-50 border border-[#DCE5F0] text-slate-700 font-bold rounded-md text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <Award size={14} className="text-amber-500" /> Điều chỉnh điểm
+                <Award size={14} className="text-amber-600" /> Điều chỉnh điểm thưởng
               </button>
             </div>
+
           </div>
         )}
       </Drawer>
 
-      {/* Point Adjustment Modal */}
+      {/* 6. POINT ADJUSTMENT MODAL */}
       <Modal
         isOpen={isAdjustModalOpen}
         onClose={() => {
@@ -748,20 +750,18 @@ export default function StoreCustomers() {
         size="sm"
       >
         {selectedCustomer && (
-          <div className="flex flex-col gap-4 text-slate-800">
-            {/* Target customer header */}
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-500">Khách hàng:</span>
-              <span className="font-bold text-slate-800">{selectedCustomer.name} ({selectedCustomer.id})</span>
+          <div className="flex flex-col gap-3 text-left text-xs">
+            <div className="bg-[#F8FAFC] p-2.5 rounded border border-[#DCE5F0] flex justify-between">
+              <span className="text-slate-500 font-bold">Khách hàng:</span>
+              <strong className="text-slate-900">{selectedCustomer.name} ({selectedCustomer.id})</strong>
             </div>
 
-            {/* Add / Subtract options */}
-            <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+            <div className="flex bg-[#F8FAFC] p-1 rounded border border-[#DCE5F0] gap-1">
               <button
                 type="button"
                 onClick={() => setAdjustType('add')}
-                className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  adjustType === 'add' ? 'bg-white text-emerald-600 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+                className={`flex-1 py-1 text-center font-bold rounded cursor-pointer border-0 ${
+                  adjustType === 'add' ? 'bg-emerald-600 text-white' : 'text-slate-600'
                 }`}
               >
                 Cộng điểm (+)
@@ -769,30 +769,28 @@ export default function StoreCustomers() {
               <button
                 type="button"
                 onClick={() => setAdjustType('sub')}
-                className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  adjustType === 'sub' ? 'bg-white text-rose-600 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+                className={`flex-1 py-1 text-center font-bold rounded cursor-pointer border-0 ${
+                  adjustType === 'sub' ? 'bg-rose-600 text-white' : 'text-slate-600'
                 }`}
               >
                 Trừ điểm (-)
               </button>
             </div>
 
-            {/* Number of Points */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Số điểm cần điều chỉnh</label>
+            <div className="flex flex-col gap-1">
+              <label className="font-bold text-slate-800">Số điểm cần điều chỉnh</label>
               <input
                 type="number"
                 value={adjustValue}
                 onChange={(e) => setAdjustValue(Math.max(1, parseInt(e.target.value) || 0))}
-                className="w-full bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none transition-all"
+                className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 font-bold outline-none"
                 min="1"
               />
             </div>
 
-            {/* Reason - Required */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">
-                Lý do điều chỉnh <span className="text-rose-500 font-bold">*</span>
+            <div className="flex flex-col gap-1">
+              <label className="font-bold text-slate-800">
+                Lý do điều chỉnh *
               </label>
               <textarea
                 value={adjustReason}
@@ -800,45 +798,24 @@ export default function StoreCustomers() {
                   setAdjustReason(e.target.value);
                   if (e.target.value.trim()) setAdjustReasonError('');
                 }}
-                placeholder="Nhập lý do điều chỉnh bắt buộc (ví dụ: Cộng điểm từ đơn offline, Đổi quà voucher...)"
-                className={`w-full bg-slate-50 border focus:bg-white rounded-xl px-3 py-2 text-xs text-slate-800 outline-none transition-all h-20 resize-none ${
-                  adjustReasonError ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 focus:border-blue-400'
-                }`}
+                placeholder="Nhập lý do bắt buộc (Ví dụ: Đổi quà voucher, Cộng điểm bù...)"
+                className="w-full h-16 p-2 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 outline-none resize-none"
               />
-              {adjustReasonError && (
-                <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
-                  ⚠️ {adjustReasonError}
-                </span>
-              )}
+              {adjustReasonError && <span className="text-red-500 font-bold">{adjustReasonError}</span>}
             </div>
 
-            {/* Sync Alert Note */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col gap-1">
-              <span className="text-[10px] font-bold text-amber-800 flex items-center gap-1.5">
-                <Info size={11} className="shrink-0" /> Ghi chú đồng bộ:
-              </span>
-              <p className="text-[10px] text-amber-900 leading-relaxed font-semibold">
-                Điểm thưởng sẽ được đồng bộ ngay lên App khách hàng.
-              </p>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-3 justify-end mt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => {
-                  setIsAdjustModalOpen(false);
-                  setAdjustReason('');
-                  setAdjustReasonError('');
-                }}
-                className="px-4 py-2 border border-slate-200 rounded-xl font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer text-slate-650 bg-white"
+                onClick={() => setIsAdjustModalOpen(false)}
+                className="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold rounded cursor-pointer border-0"
               >
                 Hủy
               </button>
               <button
                 type="button"
                 onClick={handleConfirmPointsAdjustment}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                className="px-3 py-1.5 bg-[#2563EB] text-white font-bold rounded cursor-pointer border-0"
               >
                 Xác nhận
               </button>
@@ -847,7 +824,7 @@ export default function StoreCustomers() {
         )}
       </Modal>
 
-      {/* Add Customer Modal (simple mock UI flow) */}
+      {/* 7. ADD CUSTOMER MODAL */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => {
@@ -860,122 +837,61 @@ export default function StoreCustomers() {
           setAddNameError('');
           setAddPhoneError('');
         }}
-        title="Thêm mới khách hàng lẻ"
-        size="md"
+        title="Thêm khách hàng mới"
+        size="sm"
       >
-        <form onSubmit={handleCreateCustomer} className="flex flex-col gap-4 text-slate-800">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            {/* Name */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Họ và tên <span className="text-rose-500">*</span></label>
-              <input
-                type="text"
-                placeholder="Nguyễn Văn A"
-                value={addName}
-                onChange={(e) => {
-                  setAddName(e.target.value);
-                  if (e.target.value.trim()) setAddNameError('');
-                }}
-                className={`w-full bg-slate-50 border focus:bg-white rounded-xl px-3 py-2 text-xs text-slate-800 outline-none transition-all ${
-                  addNameError ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 focus:border-blue-400'
-                }`}
-              />
-              {addNameError && (
-                <span className="text-[10px] font-bold text-rose-500">⚠️ {addNameError}</span>
-              )}
-            </div>
-
-            {/* Phone */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Số điện thoại <span className="text-rose-500">*</span></label>
-              <input
-                type="text"
-                placeholder="09xxxxxxxx"
-                value={addPhone}
-                onChange={(e) => {
-                  setAddPhone(e.target.value.replace(/[^0-9]/g, ''));
-                  if (e.target.value.trim()) setAddPhoneError('');
-                }}
-                className={`w-full bg-slate-50 border focus:bg-white rounded-xl px-3 py-2 text-xs text-slate-800 outline-none transition-all ${
-                  addPhoneError ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 focus:border-blue-400'
-                }`}
-              />
-              {addPhoneError && (
-                <span className="text-[10px] font-bold text-rose-500">⚠️ {addPhoneError}</span>
-              )}
-            </div>
-
-            {/* Date of Birth */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Ngày sinh</label>
-              <input
-                type="date"
-                value={addDob}
-                onChange={(e) => setAddDob(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-xl px-3 py-2 text-xs text-slate-800 outline-none transition-all"
-              />
-            </div>
-
-            {/* Preferred Contact Channel */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Kênh liên hệ ưu tiên</label>
-              <select
-                value={addPreferredContact}
-                onChange={(e) => setAddPreferredContact(e.target.value as any)}
-                className="w-full bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition-all"
-              >
-                <option value="Zalo">Zalo</option>
-                <option value="SĐT">Số điện thoại (SMS)</option>
-                <option value="Email">Email</option>
-              </select>
-            </div>
-
-            {/* Address */}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-700">Địa chỉ cư trú</label>
-              <input
-                type="text"
-                placeholder="Số nhà, Tên đường, Quận/Huyện, Tỉnh/TP"
-                value={addAddress}
-                onChange={(e) => setAddAddress(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-xl px-3 py-2 text-xs text-slate-800 outline-none transition-all"
-              />
-            </div>
-
-            {/* Hobby / Notes */}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-700">Ghi chú sở thích, đặc thù</label>
-              <textarea
-                value={addNotes}
-                onChange={(e) => setAddNotes(e.target.value)}
-                placeholder="Ví dụ: Thích dùng nước xả Comfort, chỉ giao hàng sau giờ hành chính..."
-                className="w-full bg-slate-50 border border-slate-200 focus:border-blue-400 focus:bg-white rounded-xl px-3 py-2 text-xs text-slate-800 outline-none transition-all h-20 resize-none"
-              />
-            </div>
+        <form onSubmit={handleCreateCustomer} className="flex flex-col gap-3 text-left text-xs">
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-800">Họ và tên *</label>
+            <input
+              type="text"
+              placeholder="Nhập họ và tên..."
+              value={addName}
+              onChange={(e) => {
+                setAddName(e.target.value);
+                if (e.target.value.trim()) setAddNameError('');
+              }}
+              className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 font-semibold outline-none"
+            />
+            {addNameError && <span className="text-red-500 font-bold">{addNameError}</span>}
           </div>
 
-          {/* Footer buttons */}
-          <div className="flex gap-3 justify-end mt-4 pt-2 border-t border-slate-100">
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-800">Số điện thoại *</label>
+            <input
+              type="text"
+              placeholder="Nhập số điện thoại 10 số..."
+              value={addPhone}
+              onChange={(e) => {
+                setAddPhone(e.target.value.replace(/[^0-9]/g, ''));
+                if (e.target.value.trim()) setAddPhoneError('');
+              }}
+              className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 font-semibold outline-none"
+            />
+            {addPhoneError && <span className="text-red-500 font-bold">{addPhoneError}</span>}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-slate-800">Ngày sinh</label>
+            <input
+              type="date"
+              value={addDob}
+              onChange={(e) => setAddDob(e.target.value)}
+              className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 font-semibold outline-none"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
             <button
               type="button"
-              onClick={() => {
-                setIsAddModalOpen(false);
-                setAddName('');
-                setAddPhone('');
-                setAddDob('');
-                setAddAddress('');
-                setAddNotes('');
-                setAddNameError('');
-                setAddPhoneError('');
-              }}
-              className="px-4 py-2 border border-slate-200 rounded-xl font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer text-slate-650 bg-white"
+              onClick={() => setIsAddModalOpen(false)}
+              className="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold rounded cursor-pointer border-0"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
+              className="px-4 py-1.5 bg-[#2563EB] text-white font-bold rounded cursor-pointer border-0 shadow-2xs"
             >
               Lưu thông tin
             </button>

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { 
-  Phone, Mail, MapPin, Calendar, FileText, 
+  Phone, Mail, MapPin, 
   Clock, Download, 
-  Plus, ShieldAlert, ArrowRight, User
+  Plus, ShieldAlert, User, Building2
 } from 'lucide-react';
-import { PageHeader, Modal, StatusBadge, Button } from '../../components/common';
+import { Modal, StatusBadge, Button } from '../../components/common';
 import { useToast } from '../../components/common/Toast';
 
 interface B2BPartner {
@@ -17,8 +17,8 @@ interface B2BPartner {
   address: string;
   period: 'Tuần' | 'Tháng';
   debt: {
-    unreconciled: number; // nợ chưa chốt
-    old: number; // nợ cũ tồn đọng
+    unreconciled: number;
+    old: number;
   };
   tier: 'Bạc' | 'Vàng' | 'Kim cương';
   logo: string;
@@ -91,7 +91,7 @@ const MOCK_SERVICES = [
 
 const MOCK_ORDERS = [
   { id: 'ORD-B2B-101', date: '2026-07-10', service: 'Giặt sấy khăn tắm', weight: '120 kg', amount: 1200000, status: 'Chưa thanh toán' },
-  { id: 'ORD-B2B-102', date: '2026-07-12', service: 'Giặt xấy ra trải giường', weight: '250 kg', amount: 2500000, status: 'Chưa thanh toán' },
+  { id: 'ORD-B2B-102', date: '2026-07-12', service: 'Giặt sấy ra trải giường', weight: '250 kg', amount: 2500000, status: 'Chưa thanh toán' },
   { id: 'ORD-B2B-103', date: '2026-07-14', service: 'Giặt hấp đồng phục', weight: '20 cái', amount: 800000, status: 'Chưa thanh toán' }
 ];
 
@@ -157,8 +157,8 @@ export default function StoreB2B() {
       toast('Không thể chốt công nợ vì kỳ này không phát sinh đơn hàng!', 'error');
       return;
     }
-    toast('Đã tạo biên bản đối soát và yêu cầu thanh toán thành công.', 'success');
-    toast('Giả lập: Thông báo đối soát đã được gửi qua Zalo/Email cho người đại diện B2B.', 'info');
+    toast('Đã chốt công nợ & tạo yêu cầu thanh toán thành công.', 'success');
+    toast('Giả lập: Thông báo đối soát đã được gửi qua Zalo/Email cho đối tác.', 'info');
   };
 
   const handleConfirmPayment = () => {
@@ -171,11 +171,11 @@ export default function StoreB2B() {
       }
       return p;
     }));
-    toast(`Đã xác nhận thanh toán thành công cho ${selectedPartner.name}. Công nợ đã được xoá.`, 'success');
+    toast(`Đã xác nhận thu tiền B2B cho ${selectedPartner.name}. Công nợ đã được xóa.`, 'success');
   };
 
   const handleExportPdf = () => {
-    toast('Biên bản đối soát đang được tạo...', 'info');
+    toast('Đang khởi tạo tệp biên bản đối soát PDF...', 'info');
     setIsPdfModalOpen(true);
   };
 
@@ -239,66 +239,101 @@ export default function StoreB2B() {
     resetForm();
   };
 
+  // Pastel accent styles for partner cards
+  const getPartnerCardAccent = (type: string, isSelected: boolean) => {
+    if (isSelected) {
+      return 'border-[#2563EB] bg-white ring-2 ring-blue-100 shadow-sm';
+    }
+    if (type.includes('Khách sạn') || type.includes('Hotel')) {
+      return 'border-[#DCE5F0] bg-white hover:border-[#2563EB]/40 hover:bg-[#EFF6FF]/40';
+    }
+    if (type.includes('Gym')) {
+      return 'border-[#DCE5F0] bg-white hover:border-amber-400/40 hover:bg-[#FFFBEB]/40';
+    }
+    if (type.includes('Spa')) {
+      return 'border-[#DCE5F0] bg-white hover:border-emerald-400/40 hover:bg-[#ECFDF5]/40';
+    }
+    return 'border-[#DCE5F0] bg-white hover:border-slate-300';
+  };
+
   const getPartnerTypeBadge = (type: string) => {
-    const map: Record<string, React.ReactNode> = {
-      'Khách sạn': <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold border border-blue-100 text-[10px]">🏨 Khách sạn</span>,
-      'Gym/Fitness': <span className="px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full font-bold border border-orange-100 text-[10px]">🏋️ Gym/Fitness</span>,
-      'Gym': <span className="px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full font-bold border border-orange-100 text-[10px]">🏋️ Gym</span>,
-      'Spa/Salon': <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-100 text-[10px]">🌿 Spa/Salon</span>,
-      'Spa': <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-100 text-[10px]">🌿 Spa</span>,
-      'Nhà hàng/Café': <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold border border-amber-100 text-[10px]">☕ Nhà hàng/Café</span>,
-      'Phòng khám/Bệnh viện': <span className="px-2 py-0.5 bg-rose-50 text-rose-700 rounded-full font-bold border border-rose-100 text-[10px]">🏥 Phòng khám/Bệnh viện</span>,
-      'Trường học': <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-bold border border-indigo-100 text-[10px]">🏫 Trường học</span>,
-      'Văn phòng/Doanh nghiệp': <span className="px-2 py-0.5 bg-slate-50 text-slate-700 rounded-full font-bold border border-slate-100 text-[10px]">🏢 Văn phòng/Doanh nghiệp</span>,
-      'Căn hộ dịch vụ': <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-full font-bold border border-sky-100 text-[10px]">🏢 Căn hộ dịch vụ</span>,
-      'Nhà máy/Xưởng sản xuất': <span className="px-2 py-0.5 bg-neutral-50 text-neutral-700 rounded-full font-bold border border-neutral-100 text-[10px]">🏭 Nhà máy/Xưởng sản xuất</span>,
-      'Câu lạc bộ thể thao': <span className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded-full font-bold border border-teal-100 text-[10px]">⚽ CLB thể thao</span>
-    };
-    return map[type] || <span className="px-2 py-0.5 bg-violet-50 text-violet-755 rounded-full font-bold border border-violet-100 text-[10px]">💼 {type}</span>;
+    if (type.includes('Khách sạn')) {
+      return <span className="px-2 py-0.5 rounded text-[10px] font-bold text-blue-800 bg-[#EFF6FF] border border-[#BFDBFE]">🏨 Khách sạn</span>;
+    }
+    if (type.includes('Gym')) {
+      return <span className="px-2 py-0.5 rounded text-[10px] font-bold text-amber-800 bg-[#FFFBEB] border border-[#FDE68A]">🏋️ Gym / Fitness</span>;
+    }
+    if (type.includes('Spa')) {
+      return <span className="px-2 py-0.5 rounded text-[10px] font-bold text-emerald-800 bg-[#ECFDF5] border border-[#A7F3D0]">🌿 Spa / Massage</span>;
+    }
+    return <span className="px-2 py-0.5 rounded text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200">💼 {type}</span>;
   };
 
   const getTierBadge = (tier: B2BPartner['tier']) => {
     const map = {
       'Bạc': 'bg-slate-100 text-slate-700 border-slate-200',
-      'Vàng': 'bg-amber-50 text-amber-700 border-amber-200',
-      'Kim cương': 'bg-indigo-50 text-indigo-700 border-indigo-200'
+      'Vàng': 'bg-[#FFFBEB] text-amber-800 border-[#FDE68A]',
+      'Kim cương': 'bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]'
     };
     return (
-      <span className={`px-2 py-0.5 rounded-full border font-bold text-[10px] ${map[tier]}`}>
+      <span className={`px-2 py-0.5 rounded border font-bold text-[10px] ${map[tier]}`}>
         Hạng {tier}
       </span>
     );
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn pb-12 text-slate-900">
-      <PageHeader
-        title="Quản lý đối tác B2B"
-        description="Quản lý tổ chức, bảng giá riêng và công nợ định kỳ."
-        breadcrumb={[
-          { label: 'Cửa hàng', to: '/store/dashboard' },
-          { label: 'Đối tác B2B' },
-        ]}
-      />
+    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-4 md:p-8 flex flex-col gap-5 text-left">
+      <style>{`
+        .reveal-hidden {
+          opacity: 1;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .reveal-hidden {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+          }
+          .reveal-hidden.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
 
-      {/* Main Grid: Left side partners list, Right side partner detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* 1. HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-3">
+        <div>
+          <span className="text-[10px] font-mono font-bold tracking-widest text-[#2563EB] uppercase">
+            B2B PARTNER MANAGEMENT
+          </span>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+            Quản lý đối tác B2B
+          </h1>
+        </div>
+
+        <button 
+          type="button"
+          onClick={() => { resetForm(); setIsAddModalOpen(true); }}
+          className="px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer border-0 shadow-2xs flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+        >
+          <Plus size={16} /> Thêm đối tác mới
+        </button>
+      </div>
+
+      {/* 2. MAIN MASTER-DETAIL WORKSPACE GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         
-        {/* Left Column: Partners List */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <div className="flex justify-between items-center bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
-            <span className="font-bold text-sm text-slate-800">Danh sách ({partners.length})</span>
-            <Button 
-              size="sm" 
-              variant="primary" 
-              onClick={() => { resetForm(); setIsAddModalOpen(true); }}
-              className="flex items-center gap-1 font-bold text-xs"
-            >
-              <Plus size={14} /> Thêm đối tác
-            </Button>
+        {/* LEFT COLUMN: 4 COLS - CLICKABLE PARTNER CARDS LIST */}
+        <div className="lg:col-span-4 flex flex-col gap-3">
+          <div className="bg-white border border-[#DCE5F0] px-4 py-3 rounded-xl shadow-2xs flex justify-between items-center text-xs">
+            <span className="font-bold text-slate-800">Danh sách đối tác</span>
+            <span className="font-mono font-bold text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded border border-[#BFDBFE]">
+              {partners.length} doanh nghiệp
+            </span>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {partners.map((p) => {
               const totalDebt = p.debt.unreconciled + p.debt.old;
               const isSelected = p.id === selectedPartnerId;
@@ -306,73 +341,86 @@ export default function StoreB2B() {
                 <div
                   key={p.id}
                   onClick={() => setSelectedPartnerId(p.id)}
-                  className={`bg-white border hover:border-blue-400 p-4 rounded-2xl shadow-xs cursor-pointer transition-all flex flex-col gap-3 ${
-                    isSelected ? 'border-blue-600 ring-2 ring-blue-50' : 'border-slate-200'
-                  }`}
+                  className={`rounded-xl p-4 cursor-pointer transition-all flex flex-col gap-2.5 ${getPartnerCardAccent(p.type, isSelected)}`}
                 >
-                  <div className="flex gap-3">
-                    <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-xl shrink-0">
-                      {p.logo}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-sm text-slate-900 truncate">{p.name}</h3>
-                      <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                        <User size={12}/> {p.contactPerson}
-                      </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-9 h-9 rounded-lg bg-[#F8FAFC] border border-[#DCE5F0] flex items-center justify-center text-lg shrink-0">
+                        {p.logo}
+                      </span>
+                      <div className="min-w-0 flex flex-col">
+                        <strong className="text-xs font-black text-slate-900 truncate">{p.name}</strong>
+                        <span className="text-[10px] font-semibold text-slate-500 flex items-center gap-1">
+                          <User size={11} className="text-slate-400" /> {p.contactPerson}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {getPartnerTypeBadge(p.type)}
                     {getTierBadge(p.tier)}
                   </div>
 
-                  <div className="border-t border-slate-100 pt-3 flex justify-between items-center text-xs">
-                    <div className="flex flex-col">
-                      <span className="text-slate-400 font-semibold">TỔNG NỢ HIỆN TẠI</span>
-                      <span className={`font-bold text-sm ${totalDebt > 0 ? 'text-red-600' : 'text-slate-500'}`}>
-                        {totalDebt.toLocaleString('vi-VN')}đ
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-extrabold text-blue-600 flex items-center gap-0.5 group">
-                      Xem chi tiết <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-                    </span>
+                  <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Công nợ:</span>
+                    <strong className={`font-mono text-xs ${totalDebt > 0 ? 'text-red-600' : 'text-slate-600'}`}>
+                      {totalDebt.toLocaleString('vi-VN')}đ
+                    </strong>
                   </div>
-
-                  {p.notes && (
-                    <div className="bg-slate-50 text-[10px] text-slate-500 p-2 rounded-lg truncate border border-slate-100">
-                      <strong>Giao nhận:</strong> {p.notes}
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Right Column: Detailed View */}
-        <div className="lg:col-span-8 flex flex-col gap-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm min-h-[500px]">
-          {/* Partner Details Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 gap-4">
-            <div className="flex gap-4">
-              <div className="w-14 h-14 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center text-3xl">
-                {selectedPartner.logo}
-              </div>
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-950">{selectedPartner.name}</h2>
-                <div className="flex flex-wrap gap-2 mt-1 items-center">
-                  {getPartnerTypeBadge(selectedPartner.type)}
-                  {getTierBadge(selectedPartner.tier)}
-                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                    <Clock size={12} /> Đối soát: <strong>{selectedPartner.period}</strong>
-                  </span>
+        {/* RIGHT COLUMN: 8 COLS - PARTNER WORKSPACE DETAIL */}
+        <div className="lg:col-span-8 bg-white border border-[#DCE5F0] rounded-xl p-5 shadow-2xs flex flex-col gap-4 text-xs">
+          
+          {/* HEADER SUMMARY METRICS ROW */}
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="w-12 h-12 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center text-2xl shrink-0">
+                  {selectedPartner.logo}
+                </span>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight">{selectedPartner.name}</h2>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {getPartnerTypeBadge(selectedPartner.type)}
+                    {getTierBadge(selectedPartner.tier)}
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            {/* SUMMARY ROW METRICS USING EXISTING PARTNER DATA */}
+            <div className="grid grid-cols-3 gap-3 bg-[#F8FAFC] p-3 rounded-lg border border-[#DCE5F0]">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">TỔNG CÔNG NỢ</span>
+                <strong className={`font-mono text-sm ${(selectedPartner.debt.unreconciled + selectedPartner.debt.old) > 0 ? 'text-red-600' : 'text-slate-800'}`}>
+                  {(selectedPartner.debt.unreconciled + selectedPartner.debt.old).toLocaleString('vi-VN')}đ
+                </strong>
+              </div>
+
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">CHU KỲ ĐỐI SOÁT</span>
+                <strong className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <Clock size={12} className="text-[#2563EB]" /> Theo {selectedPartner.period}
+                </strong>
+              </div>
+
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">LOẠI HÌNH DOANH NGHIỆP</span>
+                <strong className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <Building2 size={12} className="text-[#2563EB]" /> {selectedPartner.type}
+                </strong>
               </div>
             </div>
           </div>
 
-          {/* Details Tabs Navigation */}
-          <div className="flex border-b border-slate-100 overflow-x-auto gap-2">
+          {/* 4 ISOLATED TABS */}
+          <div className="flex border-b border-slate-100 gap-2">
             {[
               { key: 'info', label: 'Thông tin' },
               { key: 'pricing', label: 'Bảng giá riêng' },
@@ -381,10 +429,11 @@ export default function StoreB2B() {
             ].map(tab => (
               <button
                 key={tab.key}
+                type="button"
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`py-2 px-4 text-xs font-bold whitespace-nowrap border-b-2 transition-all cursor-pointer ${
+                className={`py-2 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer bg-transparent ${
                   activeTab === tab.key 
-                    ? 'border-blue-600 text-blue-600' 
+                    ? 'border-[#2563EB] text-[#2563EB]' 
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -393,385 +442,329 @@ export default function StoreB2B() {
             ))}
           </div>
 
-          {/* Tab Contents */}
-          <div className="flex-1 mt-4">
-            
-            {/* Tab: Info */}
-            {activeTab === 'info' && (
-              <div className="flex flex-col gap-6 animate-fadeIn">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Tên doanh nghiệp</span>
-                    <span className="text-sm font-bold text-slate-950">{selectedPartner.name}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Loại hình kinh doanh</span>
-                    <span className="text-sm font-bold text-slate-950">{selectedPartner.type}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Người đại diện liên hệ</span>
-                    <span className="text-sm font-bold text-slate-950 flex items-center gap-1.5">
-                      <User size={14} className="text-slate-400"/> {selectedPartner.contactPerson}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Số điện thoại</span>
-                    <span className="text-sm font-bold text-slate-950 flex items-center gap-1.5">
-                      <Phone size={14} className="text-slate-400"/> {selectedPartner.phone}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Địa chỉ Email</span>
-                    <span className="text-sm font-bold text-slate-950 flex items-center gap-1.5">
-                      <Mail size={14} className="text-slate-400"/> {selectedPartner.email || 'Chưa cập nhật'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Chu kỳ đối soát công nợ</span>
-                    <span className="text-sm font-bold text-slate-950 flex items-center gap-1.5">
-                      <Calendar size={14} className="text-slate-400"/> Đối soát theo {selectedPartner.period}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Địa chỉ doanh nghiệp</span>
-                    <span className="text-sm font-bold text-slate-950 flex items-start gap-1.5">
-                      <MapPin size={14} className="text-slate-400 mt-0.5 shrink-0"/> {selectedPartner.address}
-                    </span>
-                  </div>
+          {/* TAB 1: THÔNG TIN */}
+          {activeTab === 'info' && (
+            <div className="flex flex-col gap-4 animate-fadeIn">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#F8FAFC] p-4 rounded-lg border border-[#DCE5F0]">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Người đại diện liên hệ</span>
+                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <User size={13} className="text-[#2563EB]" /> {selectedPartner.contactPerson}
+                  </span>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-2">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Quy trình Giao - Nhận đặc thù</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    {selectedPartner.notes || 'Không có ghi chú đặc thù nào.'}
-                  </p>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Số điện thoại</span>
+                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <Phone size={13} className="text-[#2563EB]" /> {selectedPartner.phone}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Địa chỉ Email</span>
+                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <Mail size={13} className="text-[#2563EB]" /> {selectedPartner.email || 'Chưa cập nhật'}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Địa chỉ doanh nghiệp</span>
+                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <MapPin size={13} className="text-[#2563EB]" /> {selectedPartner.address}
+                  </span>
                 </div>
               </div>
-            )}
 
-            {/* Tab: Pricing */}
-            {activeTab === 'pricing' && (
-              <div className="flex flex-col gap-4 animate-fadeIn">
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex items-start gap-3">
-                  <ShieldAlert size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-800 leading-relaxed font-medium">
-                    <strong>Ghi chú dịch vụ:</strong> Khi tạo đơn cho đối tác này, hệ thống ưu tiên giá B2B thay cho giá khách lẻ.
-                  </p>
+              {/* OPERATIONAL DELIVERY NOTE */}
+              <div className="bg-[#EEF4FF] border border-[#BFDBFE] p-3.5 rounded-lg flex flex-col gap-1">
+                <span className="text-[10px] font-mono font-bold text-[#2563EB] uppercase flex items-center gap-1">
+                  💡 GHI CHÚ GIAO / NHẬN ĐẶC THÙ (OPERATIONAL NOTE)
+                </span>
+                <p className="text-xs font-semibold text-slate-800 leading-relaxed">
+                  {selectedPartner.notes || 'Không có ghi chú đặc thù nào.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: BẢNG GIÁ RIÊNG (HIGH-CONTRAST COMPARISON TABLE) */}
+          {activeTab === 'pricing' && (
+            <div className="flex flex-col gap-3 animate-fadeIn">
+              <div className="bg-[#EEF4FF] border border-[#BFDBFE] p-3 rounded-lg flex items-center gap-2 text-xs font-semibold text-slate-800">
+                <ShieldAlert size={15} className="text-[#2563EB] shrink-0" />
+                <span>Bảng giá B2B riêng ưu tiên tự động áp dụng khi tiếp nhận đơn của đối tác này.</span>
+              </div>
+
+              <div className="border border-[#DCE5F0] rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="py-3 px-4">Tên dịch vụ</th>
+                      <th className="py-3 px-4 text-center">ĐVT</th>
+                      <th className="py-3 px-4 text-right">Giá khách lẻ</th>
+                      <th className="py-3 px-4 text-right w-44">Giá B2B riêng</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#DCE5F0]">
+                    {MOCK_SERVICES.map((s) => (
+                      <tr key={s.id} className="bg-white hover:bg-slate-50 transition-colors font-medium">
+                        <td className="py-3 px-4 font-bold text-slate-900">{s.name}</td>
+                        <td className="py-3 px-4 text-center font-semibold text-slate-600">{s.unit}</td>
+                        <td className="py-3 px-4 text-right font-mono text-slate-400 line-through">
+                          {s.retailPrice.toLocaleString('vi-VN')}đ
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <input
+                              type="number"
+                              value={partnerPrices[s.id] !== undefined ? partnerPrices[s.id] : s.partnerPrice}
+                              onChange={(e) => handlePriceChange(s.id, e.target.value)}
+                              className="w-24 px-2 py-1 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] rounded text-right font-mono font-bold text-slate-900 outline-none"
+                            />
+                            <span className="font-semibold text-slate-500">đ</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={handleSavePrices}
+                  className="px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-md cursor-pointer transition-colors border-0"
+                >
+                  Lưu bảng giá B2B
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: ĐƠN HÀNG */}
+          {activeTab === 'orders' && (
+            <div className="flex flex-col gap-3 animate-fadeIn">
+              {!selectedPartner.hasOrdersInPeriod ? (
+                <div className="p-8 border border-dashed border-[#DCE5F0] rounded-lg text-center text-slate-400 font-semibold">
+                  Không có đơn hàng phát sinh trong kỳ đối soát này.
                 </div>
-
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-                  <table className="w-full text-left border-collapse text-xs">
+              ) : (
+                <div className="border border-[#DCE5F0] rounded-lg overflow-hidden">
+                  <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-                        <th className="p-3">Dịch vụ</th>
-                        <th className="p-3 text-center">Đơn vị</th>
-                        <th className="p-3 text-right">Giá khách lẻ</th>
-                        <th className="p-3 text-right w-36">Giá riêng đối tác B2B</th>
+                      <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="py-3 px-4">Mã đơn</th>
+                        <th className="py-3 px-4">Ngày</th>
+                        <th className="py-3 px-4">Dịch vụ</th>
+                        <th className="py-3 px-4 text-center">Khối lượng</th>
+                        <th className="py-3 px-4 text-right">Thành tiền</th>
+                        <th className="py-3 px-4 text-center">Trạng thái</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {MOCK_SERVICES.map((s) => (
-                        <tr key={s.id} className="hover:bg-slate-50/50">
-                          <td className="p-3 font-bold text-slate-900">{s.name}</td>
-                          <td className="p-3 text-center text-slate-500 font-semibold">{s.unit}</td>
-                          <td className="p-3 text-right text-slate-400 line-through font-semibold">
-                            {s.retailPrice.toLocaleString('vi-VN')}đ
-                          </td>
-                          <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <input
-                                type="number"
-                                value={partnerPrices[s.id] !== undefined ? partnerPrices[s.id] : s.partnerPrice}
-                                onChange={(e) => handlePriceChange(s.id, e.target.value)}
-                                className="w-24 px-2 py-1 border border-slate-200 focus:border-blue-500 outline-none text-right rounded font-bold text-slate-800 bg-slate-50/50 focus:bg-white transition-colors"
-                              />
-                              <span className="font-semibold text-slate-600">đ</span>
-                            </div>
+                    <tbody className="divide-y divide-[#DCE5F0]">
+                      {MOCK_ORDERS.map((o) => (
+                        <tr key={o.id} className="bg-white hover:bg-slate-50 transition-colors font-medium">
+                          <td className="py-3 px-4 font-mono font-bold text-[#2563EB]">{o.id}</td>
+                          <td className="py-3 px-4 text-slate-600 font-semibold">{o.date}</td>
+                          <td className="py-3 px-4 font-bold text-slate-900">{o.service}</td>
+                          <td className="py-3 px-4 text-center font-semibold text-slate-700">{o.weight}</td>
+                          <td className="py-3 px-4 text-right font-mono font-black text-slate-900">{o.amount.toLocaleString('vi-VN')}đ</td>
+                          <td className="py-3 px-4 text-center">
+                            <StatusBadge variant="warning" label={o.status} />
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+          )}
 
-                <div className="flex justify-end mt-2">
-                  <Button size="sm" variant="primary" onClick={handleSavePrices} className="font-bold">
-                    Lưu bảng giá
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Orders */}
-            {activeTab === 'orders' && (
-              <div className="flex flex-col gap-4 animate-fadeIn">
-                {!selectedPartner.hasOrdersInPeriod ? (
-                  <div className="flex flex-col items-center justify-center p-8 border border-dashed border-slate-200 rounded-xl bg-slate-50 text-slate-400 gap-2">
-                    <FileText size={32} className="opacity-30"/>
-                    <p className="text-xs font-semibold">Không có đơn hàng phát sinh trong kỳ đối soát này.</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-semibold text-slate-500">Đơn hàng trong kỳ ({MOCK_ORDERS.length} đơn)</span>
-                      <span className="px-2.5 py-1 bg-yellow-50 text-yellow-800 rounded-full font-bold border border-yellow-100 text-[10px]">
-                        Kỳ đối soát hiện tại
-                      </span>
-                    </div>
-
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-                            <th className="p-3">Mã đơn</th>
-                            <th className="p-3">Ngày giặt</th>
-                            <th className="p-3">Dịch vụ</th>
-                            <th className="p-3 text-center">Khối lượng</th>
-                            <th className="p-3 text-right">Thành tiền</th>
-                            <th className="p-3 text-center">Trạng thái</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {MOCK_ORDERS.map((o) => (
-                            <tr key={o.id} className="hover:bg-slate-50/50">
-                              <td className="p-3 font-bold text-blue-600">{o.id}</td>
-                              <td className="p-3 text-slate-500 font-medium">{o.date}</td>
-                              <td className="p-3 font-bold text-slate-800">{o.service}</td>
-                              <td className="p-3 text-center text-slate-600 font-semibold">{o.weight}</td>
-                              <td className="p-3 text-right font-bold text-slate-900">{o.amount.toLocaleString('vi-VN')}đ</td>
-                              <td className="p-3 text-center">
-                                <StatusBadge variant="warning" label={o.status} />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Tab: Debt */}
-            {activeTab === 'debt' && (
-              <div className="flex flex-col gap-6 animate-fadeIn">
-                {/* Debt overview cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-1">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Tổng nợ chưa chốt</span>
-                    <span className="text-base font-extrabold text-slate-800">
-                      {selectedPartner.debt.unreconciled.toLocaleString('vi-VN')}đ
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-1">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Nợ cũ tồn đọng</span>
-                    <span className="text-base font-extrabold text-red-500">
-                      {selectedPartner.debt.old.toLocaleString('vi-VN')}đ
-                    </span>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col gap-1">
-                    <span className="text-[10px] text-blue-500 font-bold uppercase">Tổng cần thanh toán</span>
-                    <span className="text-lg font-black text-blue-700">
-                      {(selectedPartner.debt.unreconciled + selectedPartner.debt.old).toLocaleString('vi-VN')}đ
-                    </span>
-                  </div>
+          {/* TAB 4: CÔNG NỢ & ĐỐI SOÁT (PROMINENT AMOUNTS & CTAS) */}
+          {activeTab === 'debt' && (
+            <div className="flex flex-col gap-5 animate-fadeIn">
+              
+              {/* DEBT CARDS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-[#F8FAFC] border border-[#DCE5F0] p-3.5 rounded-lg flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">TỔNG NỢ CHƯA CHỐT</span>
+                  <strong className="font-mono text-base font-black text-slate-900">
+                    {selectedPartner.debt.unreconciled.toLocaleString('vi-VN')}đ
+                  </strong>
                 </div>
 
-                {/* Operations Buttons */}
-                <div className="flex flex-wrap gap-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl items-center justify-between">
-                  <div className="flex flex-wrap gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      disabled={!selectedPartner.hasOrdersInPeriod}
-                      onClick={handleChotCongNo}
-                      className="font-bold flex items-center gap-1 bg-white"
-                    >
-                      Chốt công nợ & Yêu cầu thanh toán
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="primary" 
-                      onClick={handleConfirmPayment}
-                      disabled={(selectedPartner.debt.unreconciled + selectedPartner.debt.old) === 0}
-                      className="font-bold flex items-center gap-1"
-                    >
-                      Xác nhận đã thu tiền B2B
-                    </Button>
-                  </div>
-                  
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleExportPdf}
-                    className="font-bold flex items-center gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 bg-white"
+                <div className="bg-[#FFF1F2] border border-[#FECDD3] p-3.5 rounded-lg flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono font-bold text-red-700 uppercase">NỢ CỦ TỒN ĐỌNG</span>
+                  <strong className="font-mono text-base font-black text-red-600">
+                    {selectedPartner.debt.old.toLocaleString('vi-VN')}đ
+                  </strong>
+                </div>
+
+                <div className="bg-[#EFF6FF] border border-[#BFDBFE] p-3.5 rounded-lg flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono font-bold text-[#2563EB] uppercase">TỔNG CẦN THANH TOÁN</span>
+                  <strong className="font-mono text-base font-black text-[#2563EB]">
+                    {(selectedPartner.debt.unreconciled + selectedPartner.debt.old).toLocaleString('vi-VN')}đ
+                  </strong>
+                </div>
+              </div>
+
+              {/* PRIMARY CTAS BAR */}
+              <div className="flex flex-wrap gap-2.5 p-3.5 bg-[#F8FAFC] border border-[#DCE5F0] rounded-lg items-center justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <button 
+                    type="button" 
+                    disabled={!selectedPartner.hasOrdersInPeriod}
+                    onClick={handleChotCongNo}
+                    className="px-3.5 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded transition-colors cursor-pointer border-0 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Download size={14} /> Xuất biên bản đối soát PDF
-                  </Button>
-                </div>
+                    Chốt công nợ &amp; tạo yêu cầu thanh toán
+                  </button>
 
-                {/* History of reconciliation */}
-                <div className="flex flex-col gap-3">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Lịch sử đối soát các kỳ trước</h4>
-                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs text-xs">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-                          <th className="p-3">Mã biên bản</th>
-                          <th className="p-3">Kỳ đối soát</th>
-                          <th className="p-3">Thời gian chốt</th>
-                          <th className="p-3 text-right">Tổng tiền</th>
-                          <th className="p-3 text-center">Trạng thái</th>
-                          <th className="p-3 text-center">Hành động</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 bg-white">
-                        {MOCK_HISTORY.map((h) => (
-                          <tr key={h.id} className="hover:bg-slate-50/50">
-                            <td className="p-3 font-semibold text-slate-600">{h.id}</td>
-                            <td className="p-3 font-bold text-slate-900">{h.period}</td>
-                            <td className="p-3 text-slate-500 font-medium">{h.date}</td>
-                            <td className="p-3 text-right font-bold text-slate-800">{h.total.toLocaleString('vi-VN')}đ</td>
-                            <td className="p-3 text-center">
-                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-100 text-[10px]">
-                                {h.status}
-                              </span>
-                            </td>
-                            <td className="p-3 text-center">
-                              <button 
-                                onClick={handleExportPdf}
-                                type="button" 
-                                className="text-blue-600 hover:text-blue-800 font-bold hover:underline inline-flex items-center gap-0.5"
-                              >
-                                <Download size={12}/> Tải PDF
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <button 
+                    type="button" 
+                    onClick={handleConfirmPayment}
+                    disabled={(selectedPartner.debt.unreconciled + selectedPartner.debt.old) === 0}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded transition-colors cursor-pointer border-0 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Xác nhận đã thu tiền B2B
+                  </button>
                 </div>
-
+                
+                <button 
+                  type="button" 
+                  onClick={handleExportPdf}
+                  className="px-3 py-2 bg-white hover:bg-slate-50 text-[#2563EB] border border-[#BFDBFE] font-bold text-xs rounded transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Download size={14} /> Xuất PDF
+                </button>
               </div>
-            )}
 
-          </div>
+              {/* RECONCILIATION HISTORY TABLE UNDERNEATH */}
+              <div className="flex flex-col gap-2 pt-2">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                  LỊCH SỬ ĐỐI SOÁT CÁC KỲ TRƯỚC
+                </span>
+                
+                <div className="border border-[#DCE5F0] rounded-lg overflow-hidden">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="py-2.5 px-3">Mã biên bản</th>
+                        <th className="py-2.5 px-3">Kỳ đối soát</th>
+                        <th className="py-2.5 px-3">Ngày chốt</th>
+                        <th className="py-2.5 px-3 text-right">Tổng tiền</th>
+                        <th className="py-2.5 px-3 text-center">Trạng thái</th>
+                        <th className="py-2.5 px-3 text-right">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#DCE5F0]">
+                      {MOCK_HISTORY.map((h) => (
+                        <tr key={h.id} className="bg-white hover:bg-slate-50 transition-colors font-medium">
+                          <td className="py-2.5 px-3 font-mono text-slate-600">{h.id}</td>
+                          <td className="py-2.5 px-3 font-bold text-slate-900">{h.period}</td>
+                          <td className="py-2.5 px-3 text-slate-500 font-semibold">{h.date}</td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">{h.total.toLocaleString('vi-VN')}đ</td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold">
+                              {h.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <button 
+                              type="button" 
+                              onClick={handleExportPdf}
+                              className="text-[#2563EB] font-bold hover:underline bg-transparent border-0 cursor-pointer"
+                            >
+                              Tải PDF
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )}
 
         </div>
 
       </div>
 
-      {/* Modal: Add Partner */}
+      {/* MODAL: ADD B2B PARTNER */}
       <Modal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); resetForm(); }} title="Thêm đối tác B2B mới" size="md">
-        <form onSubmit={handleCreatePartner} className="flex flex-col gap-4 text-xs">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-600">Tên doanh nghiệp <span className="text-red-500">*</span></label>
+        <form onSubmit={handleCreatePartner} className="flex flex-col gap-3 text-left text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="font-bold text-slate-800">Tên doanh nghiệp *</label>
               <input
                 type="text"
-                placeholder="Nhập tên doanh nghiệp B2B"
+                placeholder="Nhập tên doanh nghiệp..."
                 value={newPartnerName}
                 onChange={(e) => setNewPartnerName(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-800"
+                className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 outline-none font-semibold"
+                required
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-600">Loại hình doanh nghiệp <span className="text-red-500">*</span></label>
+
+            <div className="flex flex-col gap-1">
+              <label className="font-bold text-slate-800">Loại hình *</label>
               <select
                 value={newPartnerType}
                 onChange={(e) => setNewPartnerType(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-bold text-slate-800 cursor-pointer"
+                className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 font-bold outline-none cursor-pointer"
               >
                 <option value="Khách sạn">🏨 Khách sạn</option>
                 <option value="Gym/Fitness">🏋️ Gym/Fitness</option>
                 <option value="Spa/Salon">🌿 Spa/Salon</option>
                 <option value="Nhà hàng/Café">☕ Nhà hàng/Café</option>
                 <option value="Phòng khám/Bệnh viện">🏥 Phòng khám/Bệnh viện</option>
-                <option value="Trường học">🏫 Trường học</option>
-                <option value="Văn phòng/Doanh nghiệp">🏢 Văn phòng/Doanh nghiệp</option>
-                <option value="Căn hộ dịch vụ">🏢 Căn hộ dịch vụ</option>
-                <option value="Nhà máy/Xưởng sản xuất">🏭 Nhà máy/Xưởng sản xuất</option>
-                <option value="Câu lạc bộ thể thao">⚽ Câu lạc bộ thể thao</option>
                 <option value="Khác">💼 Khác</option>
               </select>
             </div>
+
             {newPartnerType === 'Khác' && (
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="font-semibold text-slate-600">Nhập loại hình doanh nghiệp <span className="text-red-500">*</span></label>
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="font-bold text-slate-800">Nhập loại hình cụ thể *</label>
                 <input
                   type="text"
-                  placeholder="Nhập loại hình doanh nghiệp"
+                  placeholder="Ví dụ: Căn hộ dịch vụ..."
                   value={customPartnerType}
                   onChange={(e) => setCustomPartnerType(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-800"
+                  className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 outline-none font-semibold"
                 />
               </div>
             )}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-600">Người liên hệ <span className="text-red-500">*</span></label>
+
+            <div className="flex flex-col gap-1">
+              <label className="font-bold text-slate-800">Người liên hệ *</label>
               <input
                 type="text"
-                placeholder="Nhập tên người liên hệ đại diện"
+                placeholder="Tên đại diện..."
                 value={newPartnerContact}
                 onChange={(e) => setNewPartnerContact(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-800"
+                className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 outline-none font-semibold"
+                required
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-600">Số điện thoại <span className="text-red-500">*</span></label>
+
+            <div className="flex flex-col gap-1">
+              <label className="font-bold text-slate-800">Số điện thoại *</label>
               <input
                 type="text"
                 placeholder="Ví dụ: 0912345678"
                 value={newPartnerPhone}
                 onChange={(e) => setNewPartnerPhone(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-800"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-600">Email liên hệ</label>
-              <input
-                type="email"
-                placeholder="partner@gmail.com"
-                value={newPartnerEmail}
-                onChange={(e) => setNewPartnerEmail(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-800"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-600">Chu kỳ đối soát</label>
-              <select
-                value={newPartnerPeriod}
-                onChange={(e) => setNewPartnerPeriod(e.target.value as any)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-bold text-slate-800 cursor-pointer"
-              >
-                <option value="Tuần">Tuần</option>
-                <option value="Tháng">Tháng</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5 md:col-span-2">
-              <label className="font-semibold text-slate-600">Địa chỉ doanh nghiệp</label>
-              <input
-                type="text"
-                placeholder="Nhập số nhà, tên đường, quận/huyện..."
-                value={newPartnerAddress}
-                onChange={(e) => setNewPartnerAddress(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-800"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5 md:col-span-2">
-              <label className="font-semibold text-slate-600">Ghi chú giao nhận đặc thù</label>
-              <textarea
-                placeholder="Ví dụ: Giao sau giờ hành chính, cần xịt tinh dầu thơm..."
-                rows={2}
-                value={newPartnerNotes}
-                onChange={(e) => setNewPartnerNotes(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all resize-none font-medium text-slate-800"
+                className="w-full h-[38px] px-3 bg-[#F8FAFC] border border-[#DCE5F0] rounded text-slate-900 outline-none font-semibold"
+                required
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2.5 mt-4 pt-3 border-t border-slate-100">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
             <Button size="sm" variant="outline" type="button" onClick={() => setIsAddModalOpen(false)}>
               Hủy
             </Button>
@@ -782,117 +775,35 @@ export default function StoreB2B() {
         </form>
       </Modal>
 
-      {/* Modal: Reconciliation PDF Preview Mock */}
-      <Modal isOpen={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} title="Xem trước Biên bản đối soát công nợ" size="lg">
-        <div className="flex flex-col gap-6 text-xs bg-slate-50 p-6 rounded-2xl border border-slate-200/80 font-mono shadow-inner max-h-[80vh] overflow-y-auto">
-          {/* Shop Header */}
-          <div className="flex justify-between items-start border-b border-dashed border-slate-350 pb-4">
+      {/* MODAL: PDF RECONCILIATION PREVIEW */}
+      <Modal isOpen={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} title="Biên bản đối soát PDF" size="lg">
+        <div className="flex flex-col gap-4 text-xs font-mono bg-[#F8FAFC] p-4 rounded border border-[#DCE5F0]">
+          <div className="flex justify-between items-start border-b border-dashed border-slate-300 pb-2">
             <div>
-              <h3 className="font-black text-sm text-blue-600">💧 DUDI LAUNDRY PLATFORM</h3>
-              <p className="text-slate-500 text-[10px] mt-0.5">Địa chỉ: 12 Nguyễn Văn Linh, Tân Phong, Quận 7, TP.HCM</p>
-              <p className="text-slate-500 text-[10px]">Hotline hỗ trợ: 1900 8888</p>
+              <strong className="text-sm text-[#2563EB]">💧 DUDI LAUNDRY B2B</strong>
+              <p className="text-slate-500 text-[10px]">Hotline: 1900 8888</p>
             </div>
             <div className="text-right">
-              <h4 className="font-black text-sm text-slate-800">BIÊN BẢN ĐỐI SOÁT</h4>
-              <p className="text-slate-500 text-[10px] mt-0.5">Mã biên bản: REC-{selectedPartner.id.toUpperCase()}</p>
-              <p className="text-slate-500 text-[10px]">Kỳ thanh toán: {selectedPartner.period === 'Tháng' ? 'Tháng 07/2026' : 'Tuần 02/07/2026'}</p>
+              <strong className="text-sm text-slate-900">BIÊN BẢN ĐỐI SOÁT</strong>
+              <p className="text-slate-500 text-[10px]">Mã: REC-{selectedPartner.id.toUpperCase()}</p>
             </div>
           </div>
 
-          {/* Client Details */}
-          <div className="flex flex-col gap-1 text-[11px]">
-            <p><strong>Khách hàng đối tác B2B:</strong> {selectedPartner.name}</p>
-            <p><strong>Đại diện liên hệ:</strong> {selectedPartner.contactPerson} ({selectedPartner.phone})</p>
-            <p><strong>Địa chỉ:</strong> {selectedPartner.address}</p>
-            <p><strong>Chu kỳ đối soát:</strong> {selectedPartner.period}</p>
+          <div className="flex flex-col gap-1">
+            <p><strong>Khách hàng:</strong> {selectedPartner.name}</p>
+            <p><strong>Đại diện:</strong> {selectedPartner.contactPerson} ({selectedPartner.phone})</p>
+            <p><strong>Tổng công nợ:</strong> {(selectedPartner.debt.unreconciled + selectedPartner.debt.old).toLocaleString('vi-VN')}đ</p>
           </div>
 
-          {/* Orders Table */}
-          <div className="flex flex-col gap-1.5">
-            <p className="font-bold text-slate-700">Chi tiết đơn hàng phát sinh trong kỳ:</p>
-            <div className="border border-slate-300 rounded-lg overflow-hidden">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-200 text-slate-700 font-bold border-b border-slate-300 text-[10px]">
-                    <th className="p-2 text-left">Mã đơn</th>
-                    <th className="p-2 text-left">Ngày</th>
-                    <th className="p-2 text-left">Nội dung dịch vụ</th>
-                    <th className="p-2 text-center">Khối lượng</th>
-                    <th className="p-2 text-right">Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
-                  {MOCK_ORDERS.map(o => (
-                    <tr key={o.id} className="text-[10px]">
-                      <td className="p-2 font-bold text-blue-700">{o.id}</td>
-                      <td className="p-2 text-slate-600">{o.date}</td>
-                      <td className="p-2 text-slate-800 font-bold">{o.service}</td>
-                      <td className="p-2 text-center font-bold">{o.weight}</td>
-                      <td className="p-2 text-right font-bold">{o.amount.toLocaleString('vi-VN')}đ</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+            <Button size="sm" variant="outline" onClick={() => setIsPdfModalOpen(false)}>Đóng</Button>
+            <Button size="sm" variant="primary" onClick={() => { setIsPdfModalOpen(false); toast('Tải tệp PDF thành công.', 'success'); }}>
+              Tải tệp PDF
+            </Button>
           </div>
-
-          {/* Total Debt & Billing */}
-          <div className="flex flex-col gap-1 items-end pt-2 border-t border-dashed border-slate-350">
-            <div className="flex justify-between w-64 text-slate-600">
-              <span>Nợ phát sinh trong kỳ:</span>
-              <span className="font-bold">{selectedPartner.debt.unreconciled.toLocaleString('vi-VN')}đ</span>
-            </div>
-            <div className="flex justify-between w-64 text-slate-600">
-              <span>Nợ cũ tồn đọng:</span>
-              <span className="font-bold">{selectedPartner.debt.old.toLocaleString('vi-VN')}đ</span>
-            </div>
-            <div className="flex justify-between w-64 text-sm font-black border-t border-slate-300 pt-1 text-slate-900">
-              <span>TỔNG CẦN THANH TOÁN:</span>
-              <span className="text-blue-600">{(selectedPartner.debt.unreconciled + selectedPartner.debt.old).toLocaleString('vi-VN')}đ</span>
-            </div>
-          </div>
-
-          {/* Bank Transfer details & Signature area */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end mt-4 pt-4 border-t border-slate-300">
-            <div className="bg-white border border-slate-200 p-3 rounded-lg flex flex-col gap-1">
-              <p className="font-bold text-[10px] text-blue-800 uppercase tracking-wider">Thông tin chuyển khoản</p>
-              <p className="text-[10px]">Ngân hàng: <strong>MB Bank (Ngân hàng Quân Đội)</strong></p>
-              <p className="text-[10px]">Số tài khoản: <strong>9999 8888 7777</strong></p>
-              <p className="text-[10px]">Chủ tài khoản: <strong>CONG TY CỔ PHẦN DUDI LAUNDRY</strong></p>
-              <p className="text-[10px]">Nội dung: <strong>Doi soat B2B {selectedPartner.id}</strong></p>
-            </div>
-
-            <div className="flex justify-around items-start text-center h-28">
-              <div className="flex flex-col gap-1 text-[10px]">
-                <p className="font-bold text-slate-700">Người lập biểu</p>
-                <p className="text-slate-400 text-[9px] italic mt-4">(Ký, ghi rõ họ tên)</p>
-                <p className="font-black text-slate-800 mt-6">Admin DUDI</p>
-              </div>
-              <div className="flex flex-col gap-1 text-[10px]">
-                <p className="font-bold text-slate-700">Đại diện B2B khách hàng</p>
-                <p className="text-slate-400 text-[9px] italic mt-4">(Ký và xác nhận)</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
-          <Button size="sm" variant="outline" onClick={() => setIsPdfModalOpen(false)}>
-            Đóng
-          </Button>
-          <Button 
-            size="sm" 
-            variant="primary" 
-            onClick={() => {
-              setIsPdfModalOpen(false);
-              toast('Đang tải xuống biên bản đối soát PDF (Giả lập)...', 'success');
-            }}
-            className="font-bold flex items-center gap-1"
-          >
-            <Download size={14} /> Tải PDF
-          </Button>
         </div>
       </Modal>
+
     </div>
   );
 }
