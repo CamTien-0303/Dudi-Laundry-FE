@@ -1,15 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Share2, MessageSquare, Printer, AlertTriangle, Play, ArrowUp, ArrowDown, Info } from 'lucide-react';
-
-import {
-  PageHeader,
-  Button,
-  StatusBadge,
-  Select,
-  Input,
-  ConfirmDialog,
-  Modal,
-} from '../../components/common';
+import { Share2, MessageSquare, Printer, Eye, EyeOff, Info, Play } from 'lucide-react';
+import { PageHeader, ConfirmDialog, Modal } from '../../components/common';
 import { useToast } from '../../components/common/Toast';
 
 const DEFAULT_TEMPLATES: Record<string, string> = {
@@ -19,44 +10,18 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   'Đánh giá dịch vụ': 'Chào {Ten_Khach}, đơn hàng {Ma_Don} đã được hoàn thành. Hãy chia sẻ đánh giá về dịch vụ giặt là của DUDI nhé!'
 };
 
-const INVOICE_PRESETS = {
-  'Mẫu tối giản': {
-    showLogo: false,
-    showQr: true,
-    showWeight: false,
-    showNote: false,
-    showThanks: true,
-    headerText: 'DUDI LAUNDRY',
-    footerText: 'Cảm ơn quý khách!'
-  },
-  'Mẫu đầy đủ chi tiết': {
-    showLogo: true,
-    showQr: true,
-    showWeight: true,
-    showNote: true,
-    showThanks: true,
-    headerText: 'HỆ THỐNG GIẶT LÀ CAO CẤP DUDI',
-    footerText: 'Hân hạnh được phục vụ quý khách. Vui lòng kiểm tra kỹ quần áo trước khi ra khỏi tiệm.'
-  },
-  'Mẫu thương mại': {
-    showLogo: true,
-    showQr: true,
-    showWeight: true,
-    showNote: false,
-    showThanks: true,
-    headerText: 'DUDI LAUNDRY - ĐIỂM GIẶT SẤY TỰ ĐỘNG',
-    footerText: 'Mọi thắc mắc xin liên hệ Hotline. Hẹn gặp lại quý khách!'
-  }
-};
-
 export default function AdminZaloInvoiceSettings() {
   const { toast } = useToast();
 
-  // 1. ZALO STATE
+  // Top Tabs
+  const [activeTab, setActiveTab] = useState<'zalo' | 'zns' | 'invoice'>('zalo');
+
+  // 1. ZALO OA STATE
   const [oaId, setOaId] = useState('2408159938102391280');
   const [secretKey, setSecretKey] = useState('AbcxyZ12398471928371928');
   const [accessToken, setAccessToken] = useState('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvYV9pZCI6IjI0MDgxNTk5MzgxMDIzOTEyODAifQ');
-  const [isTokenExpired, setIsTokenExpired] = useState(false);
+  const [showSecretKey, setShowSecretKey] = useState(false);
+  const [showAccessToken, setShowAccessToken] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'Đã kết nối' | 'Lỗi kết nối'>('Đã kết nối');
 
   // 2. ZNS STATE
@@ -74,16 +39,6 @@ export default function AdminZaloInvoiceSettings() {
   const [showThanks, setShowThanks] = useState(true);
   const [headerText, setHeaderText] = useState('HỆ THỐNG GIẶT LÀ CAO CẤP DUDI');
   const [footerText, setFooterText] = useState('Hân hạnh được phục vụ quý khách. Vui lòng kiểm tra kỹ quần áo trước khi ra khỏi tiệm.');
-  
-  // Sortable mock blocks
-  const [invoiceLayoutOrder, setInvoiceLayoutOrder] = useState<string[]>([
-    'Thông tin tiệm',
-    'Thông tin khách hàng',
-    'Chi tiết đơn hàng',
-    'Thanh toán',
-    'Mã QR',
-    'Chân trang'
-  ]);
 
   // Save Confirm Dialog
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
@@ -97,7 +52,6 @@ export default function AdminZaloInvoiceSettings() {
         if (parsed.oaId) setOaId(parsed.oaId);
         if (parsed.secretKey) setSecretKey(parsed.secretKey);
         if (parsed.accessToken) setAccessToken(parsed.accessToken);
-        if (parsed.isTokenExpired !== undefined) setIsTokenExpired(parsed.isTokenExpired);
         if (parsed.connectionStatus) setConnectionStatus(parsed.connectionStatus);
         if (parsed.templates) setTemplates(parsed.templates);
         if (parsed.paperSize) setPaperSize(parsed.paperSize);
@@ -108,7 +62,6 @@ export default function AdminZaloInvoiceSettings() {
         if (parsed.showThanks !== undefined) setShowThanks(parsed.showThanks);
         if (parsed.headerText) setHeaderText(parsed.headerText);
         if (parsed.footerText) setFooterText(parsed.footerText);
-        if (parsed.invoiceLayoutOrder) setInvoiceLayoutOrder(parsed.invoiceLayoutOrder);
       } catch (err) {
         console.error(err);
       }
@@ -119,11 +72,6 @@ export default function AdminZaloInvoiceSettings() {
     if (!oaId || !secretKey || !accessToken) {
       setConnectionStatus('Lỗi kết nối');
       toast('Vui lòng điền đầy đủ thông tin kết nối Zalo OA.', 'error');
-      return;
-    }
-    if (isTokenExpired) {
-      setConnectionStatus('Lỗi kết nối');
-      toast('Kết nối thất bại. Token đã hết hạn.', 'error');
       return;
     }
     setConnectionStatus('Đã kết nối');
@@ -139,37 +87,11 @@ export default function AdminZaloInvoiceSettings() {
 
   const handleSendTestSms = () => {
     if (!testPhone.trim()) {
-      toast('Vui lòng nhập số điện thoại gửi thử.', 'error');
+      toast('Vui lòng nhập số điện thoại người nhận thử.', 'error');
       return;
     }
     setTestSmsModalOpen(false);
-    toast(`Đã gửi tin nhắn mẫu đến số điện thoại ${testPhone.trim()} qua Zalo OA`, 'success');
-  };
-
-  const handleSelectPreset = (presetName: keyof typeof INVOICE_PRESETS) => {
-    const config = INVOICE_PRESETS[presetName];
-    setShowLogo(config.showLogo);
-    setShowQr(config.showQr);
-    setShowWeight(config.showWeight);
-    setShowNote(config.showNote);
-    setShowThanks(config.showThanks);
-    setHeaderText(config.headerText);
-    setFooterText(config.footerText);
-    toast(`Đã áp dụng ${presetName}`, 'info');
-  };
-
-  const moveBlock = (index: number, direction: 'up' | 'down') => {
-    const newOrder = [...invoiceLayoutOrder];
-    if (direction === 'up' && index > 0) {
-      const temp = newOrder[index];
-      newOrder[index] = newOrder[index - 1];
-      newOrder[index - 1] = temp;
-    } else if (direction === 'down' && index < newOrder.length - 1) {
-      const temp = newOrder[index];
-      newOrder[index] = newOrder[index + 1];
-      newOrder[index + 1] = temp;
-    }
-    setInvoiceLayoutOrder(newOrder);
+    toast(`Đã gửi tin nhắn ZNS mẫu đến số điện thoại ${testPhone.trim()} qua Zalo OA.`, 'success');
   };
 
   const executeSave = () => {
@@ -177,7 +99,6 @@ export default function AdminZaloInvoiceSettings() {
       oaId,
       secretKey,
       accessToken,
-      isTokenExpired,
       connectionStatus,
       templates,
       paperSize,
@@ -187,15 +108,13 @@ export default function AdminZaloInvoiceSettings() {
       showNote,
       showThanks,
       headerText,
-      footerText,
-      invoiceLayoutOrder
+      footerText
     };
     localStorage.setItem('dudi_zalo_invoice_settings', JSON.stringify(data));
-    toast('Đã lưu cấu hình Zalo và mẫu hóa đơn.', 'success');
+    toast('Đã lưu cấu hình Zalo và mẫu hóa đơn thành công.', 'success');
   };
 
   const handleSaveClick = () => {
-    // Check template variable braces match {Variable}
     const currentText = templates[activeEvent] || '';
     const bracesCountOpen = (currentText.match(/\{/g) || []).length;
     const bracesCountClose = (currentText.match(/\}/g) || []).length;
@@ -203,7 +122,6 @@ export default function AdminZaloInvoiceSettings() {
       toast('Nội dung mẫu chứa dấu ngoặc biến {} không khớp cú pháp.', 'error');
       return;
     }
-
     setSaveConfirmOpen(true);
   };
 
@@ -215,221 +133,300 @@ export default function AdminZaloInvoiceSettings() {
   const isLengthExceeded = activeTemplateText.length > 250;
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800">
-      <PageHeader
-        title="Cấu hình Zalo & In ấn"
-        description="Thiết lập cổng kết nối Zalo OA, cấu hình tin nhắn ZNS gửi tự động và thiết kế biểu mẫu hóa đơn in ấn."
-        breadcrumb={[
-          { label: 'Hệ thống', to: '/admin/dashboard' },
-          { label: 'Zalo & Hóa đơn' },
-        ]}
-      />
+    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-4 md:p-8 flex flex-col gap-6 text-left">
+      
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-4">
+        <PageHeader
+          title="Cấu hình Zalo & In ấn"
+          description="Quản lý cổng kết nối Zalo OA, cấu hình mẫu tin ZNS tự động và thiết kế mẫu hóa đơn in ấn cho toàn hệ thống."
+          breadcrumb={[
+            { label: 'Hệ thống', to: '/admin/dashboard' },
+            { label: 'Zalo & Hóa đơn' },
+          ]}
+        />
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full min-w-0">
-        
-        {/* Left column (Config panels) */}
-        <div className="lg:col-span-7 flex flex-col gap-6 min-w-0 w-full">
-          
-          {/* Section 1: Zalo OA Connect */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Share2 size={18} className="text-blue-500" />
-                Cấu hình Zalo Official Account
-              </span>
-              <StatusBadge label={connectionStatus} variant={connectionStatus === 'Đã kết nối' ? 'success' : 'error'} />
+      {/* 3 TOP TABS */}
+      <div className="flex border-b border-[#DCE5F0] gap-2 bg-white p-1.5 rounded-xl border shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setActiveTab('zalo')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
+            activeTab === 'zalo'
+              ? 'bg-[#2563EB] text-white shadow-2xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Share2 size={16} />
+          <span>1. Kết nối Zalo</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('zns')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
+            activeTab === 'zns'
+              ? 'bg-[#2563EB] text-white shadow-2xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <MessageSquare size={16} />
+          <span>2. Mẫu tin ZNS</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('invoice')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
+            activeTab === 'invoice'
+              ? 'bg-[#2563EB] text-white shadow-2xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Printer size={16} />
+          <span>3. Mẫu hóa đơn</span>
+        </button>
+      </div>
+
+      {/* TAB 1: KẾT NỐI ZALO */}
+      {activeTab === 'zalo' && (
+        <div className="bg-white border border-[#DCE5F0] rounded-xl p-5 md:p-6 shadow-2xs flex flex-col gap-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <Share2 size={18} className="text-[#2563EB]" />
+              THÔNG TIN KẾT NỐI ZALO OFFICIAL ACCOUNT
             </h3>
-
-            {isTokenExpired && (
-              <div className="bg-red-50 border border-red-100 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-red-700 animate-fadeIn">
-                <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                <span className="font-bold">Token truy cập Zalo OA đã hết hạn hoặc không hợp lệ. Vui lòng làm mới từ Zalo Developers.</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-4">
-                <Input
-                  id="oaId"
-                  label="Zalo OA ID"
-                  value={oaId}
-                  onChange={(e) => setOaId(e.target.value)}
-                  placeholder="Nhập ID kênh Zalo OA"
-                />
-                <Input
-                  id="secretKey"
-                  label="Secret Key"
-                  type="password"
-                  value={secretKey}
-                  onChange={(e) => setSecretKey(e.target.value)}
-                  placeholder="Nhập Secret Key ứng dụng"
-                />
-              </div>
-
-              {/* Developer Help Info Card */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-[11px] text-slate-600 flex flex-col gap-2.5">
-                <strong className="text-xs font-bold text-slate-750 flex items-center gap-1">
-                  <Info size={14} className="text-blue-500" />
-                  Hướng dẫn cấu hình
-                </strong>
-                <p className="leading-relaxed">1. Truy cập <strong>Zalo Developers Portal</strong> và đăng nhập bằng tài khoản Admin OA.</p>
-                <p className="leading-relaxed">2. Đăng ký ứng dụng liên kết và phân quyền ZNS cho OA ID tương ứng.</p>
-                <p className="leading-relaxed">3. Tạo Access Token với thời hạn dài và dán vào ô bên dưới.</p>
-                
-                <label className="inline-flex items-center gap-2 cursor-pointer mt-1.5 select-none pt-1.5 border-t border-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={isTokenExpired}
-                    onChange={(e) => {
-                      setIsTokenExpired(e.target.checked);
-                      if (e.target.checked) setConnectionStatus('Lỗi kết nối');
-                    }}
-                    className="w-3.5 h-3.5 rounded text-red-650 focus:ring-red-500 cursor-pointer"
-                  />
-                  <span className="font-bold text-[10px] text-red-600">Giả lập Token hết hạn</span>
-                </label>
-              </div>
-            </div>
-
-            <Input
-              id="accessToken"
-              label="Access Token"
-              value={accessToken}
-              onChange={(e) => setAccessToken(e.target.value)}
-              placeholder="Nhập Access Token lấy từ Zalo Developers"
-            />
-
-            <div className="flex justify-end pt-2">
-              <Button variant="outline" size="sm" onClick={handleTestConnection}>
-                Kiểm tra kết nối
-              </Button>
-            </div>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-md border ${
+              connectionStatus === 'Đã kết nối'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-red-50 text-red-700 border-red-200'
+            }`}>
+              {connectionStatus}
+            </span>
           </div>
 
-          {/* Section 2: ZNS Template Settings */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-1.5">
-              <MessageSquare size={18} className="text-blue-500" />
-              Quản lý mẫu tin nhắn ZNS
-            </h3>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Form inputs */}
+            <div className="lg:col-span-8 flex flex-col gap-4">
+              
+              {/* OA ID */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-800">Zalo OA ID *</label>
+                <input
+                  type="text"
+                  placeholder="Nhập ID kênh Zalo Official Account"
+                  value={oaId}
+                  onChange={(e) => setOaId(e.target.value)}
+                  className="w-full h-[42px] px-3.5 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 rounded-md text-slate-900 text-xs font-semibold outline-none transition-all"
+                />
+              </div>
 
-            {/* Event tabs */}
-            <div className="flex flex-wrap gap-1.5 p-1 bg-slate-50 border border-slate-200 rounded-xl">
-              {['Tạo đơn mới', 'Cập nhật tiến độ', 'Hoàn thành', 'Đánh giá dịch vụ'].map((evt) => (
+              {/* Secret Key with Mask & Show/Hide Eye */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-800">Secret Key *</label>
+                <div className="relative">
+                  <input
+                    type={showSecretKey ? 'text' : 'password'}
+                    placeholder="Nhập Secret Key ứng dụng Zalo"
+                    value={secretKey}
+                    onChange={(e) => setSecretKey(e.target.value)}
+                    className="w-full h-[42px] pl-3.5 pr-10 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 rounded-md text-slate-900 text-xs font-semibold outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSecretKey(prev => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer p-0"
+                  >
+                    {showSecretKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Access Token with Mask & Show/Hide Eye */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-800">Access Token *</label>
+                <div className="relative">
+                  <input
+                    type={showAccessToken ? 'text' : 'password'}
+                    placeholder="Nhập Access Token dài hạn từ Zalo Developers"
+                    value={accessToken}
+                    onChange={(e) => setAccessToken(e.target.value)}
+                    className="w-full h-[42px] pl-3.5 pr-10 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 rounded-md text-slate-900 text-xs font-semibold outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAccessToken(prev => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer p-0"
+                  >
+                    {showAccessToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
                 <button
-                  key={evt}
                   type="button"
-                  onClick={() => {
-                    setActiveEvent(evt);
-                  }}
-                  className={`flex-1 text-center py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                    activeEvent === evt ? 'bg-white text-blue-600 shadow-sm border border-slate-150' : 'text-slate-550 hover:bg-slate-100'
-                  }`}
+                  onClick={handleTestConnection}
+                  className="px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-md transition-colors cursor-pointer border-0 shadow-2xs"
                 >
-                  {evt}
+                  Kiểm tra kết nối
+                </button>
+              </div>
+
+            </div>
+
+            {/* Streamlined Guidance Card */}
+            <div className="lg:col-span-4 bg-[#F8FAFC] border border-[#DCE5F0] rounded-lg p-4 text-xs text-slate-600 flex flex-col gap-2.5">
+              <strong className="text-xs font-bold text-slate-900 flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                <Info size={15} className="text-[#2563EB]" />
+                HƯỚNG DẪN KẾT NỐI ZALO OA
+              </strong>
+              <p className="leading-relaxed">1. Đăng nhập cổng <strong>Zalo Developers Portal</strong> với quyền Administrator.</p>
+              <p className="leading-relaxed">2. Tạo ứng dụng liên kết và cấp quyền ZNS cho OA ID tương ứng.</p>
+              <p className="leading-relaxed">3. Tạo Access Token dài hạn và dán các tham số bảo mật vào các ô bên trái.</p>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: MẪU TIN ZNS */}
+      {activeTab === 'zns' && (
+        <div className="bg-white border border-[#DCE5F0] rounded-xl p-5 md:p-6 shadow-2xs flex flex-col gap-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <MessageSquare size={18} className="text-[#2563EB]" />
+              QUẢN LÝ MẪU TIN NHẮN ZNS TỰ ĐỘNG
+            </h3>
+            <span className="text-xs font-bold text-slate-400">4 MẪU CHUẨN SB08</span>
+          </div>
+
+          {/* 4 Event Selector Tabs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#F8FAFC] p-1.5 rounded-lg border border-[#DCE5F0]">
+            {['Tạo đơn mới', 'Cập nhật tiến độ', 'Hoàn thành', 'Đánh giá dịch vụ'].map((evt) => (
+              <button
+                key={evt}
+                type="button"
+                onClick={() => setActiveEvent(evt)}
+                className={`py-2 px-3 text-xs font-bold rounded-md transition-all cursor-pointer border-0 ${
+                  activeEvent === evt
+                    ? 'bg-white text-[#2563EB] shadow-2xs border border-blue-200'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {evt}
+              </button>
+            ))}
+          </div>
+
+          {/* Template Content Box */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800">Nội dung mẫu ZNS ({activeEvent})</label>
+              <span className={`text-[11px] font-mono font-bold ${isLengthExceeded ? 'text-red-600 font-black' : 'text-slate-400'}`}>
+                Số ký tự: {activeTemplateText.length} / 250
+              </span>
+            </div>
+
+            <textarea
+              rows={5}
+              value={activeTemplateText}
+              onChange={(e) => handleTemplateContentChange(e.target.value)}
+              placeholder="Nhập nội dung tin nhắn ZNS..."
+              className={`w-full px-3.5 py-3 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all resize-none leading-relaxed ${
+                isLengthExceeded ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+              }`}
+            />
+            {isLengthExceeded && (
+              <span className="text-red-500 text-[10px] font-bold">Nội dung mẫu vượt quá giới hạn 250 ký tự cho phép.</span>
+            )}
+          </div>
+
+          {/* Dynamic Insertion Variables */}
+          <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg p-3.5 flex flex-col gap-2">
+            <span className="text-xs font-bold text-blue-900">Danh sách biến chèn động (Nhấp để chèn):</span>
+            <div className="flex flex-wrap gap-2">
+              {['{Ten_Khach}', '{Ma_Don}', '{Tong_Tien}'].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => handleTemplateContentChange(activeTemplateText + ' ' + v)}
+                  className="px-3 py-1 bg-white border border-blue-300 text-[#2563EB] font-mono text-xs font-bold rounded hover:bg-blue-50 transition-colors cursor-pointer"
+                >
+                  {v}
                 </button>
               ))}
             </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">Nội dung mẫu ZNS</span>
-                <span className={`text-[10px] font-bold ${isLengthExceeded ? 'text-red-500 font-extrabold' : 'text-slate-400'}`}>
-                  Số ký tự: {activeTemplateText.length} / 250
-                </span>
-              </div>
-              <textarea
-                rows={4}
-                value={activeTemplateText}
-                onChange={(e) => handleTemplateContentChange(e.target.value)}
-                className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-slate-700 text-xs focus:border-primary focus:bg-white outline-none transition-all placeholder-slate-400 resize-none font-semibold text-sm ${
-                  isLengthExceeded ? 'border-red-300' : 'border-slate-200'
-                }`}
-                placeholder="Nhập nội dung mẫu gửi tin..."
-              />
-              {isLengthExceeded && (
-                <span className="text-[10px] text-red-500 font-bold">Nội dung tin nhắn vượt quá giới hạn 250 ký tự cho phép.</span>
-              )}
-            </div>
-
-            {/* Insertion Variables Guide */}
-            <div className="bg-blue-50/40 border border-blue-100 rounded-xl p-3.5 flex flex-col gap-2">
-              <span className="text-[11px] font-bold text-blue-800">Danh sách biến khả dụng (Nhấp để chèn):</span>
-              <div className="flex flex-wrap gap-2 text-[10px]">
-                {['{Ten_Khach}', '{Ma_Don}', '{Tong_Tien}'].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => handleTemplateContentChange(activeTemplateText + ' ' + v)}
-                    className="px-2.5 py-1 bg-white border border-blue-200 text-blue-600 rounded-lg font-bold hover:bg-blue-50 transition-colors cursor-pointer"
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-1">
-              <Button variant="outline" size="sm" onClick={() => setTestSmsModalOpen(true)} className="flex items-center gap-1">
-                <Play size={13} />
-                Gửi thử tin nhắn
-              </Button>
-            </div>
           </div>
 
-          {/* Section 3: Invoice Template Designer */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Printer size={18} className="text-blue-500" />
-                Thiết lập mẫu hóa đơn
-              </span>
-            </h3>
+          <div className="flex justify-end pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setTestSmsModalOpen(true)}
+              className="px-4 py-2 bg-white hover:bg-slate-50 border border-[#DCE5F0] rounded-md text-slate-700 font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            >
+              <Play size={14} className="text-[#2563EB]" />
+              <span>Gửi thử tin nhắn</span>
+            </button>
+          </div>
+        </div>
+      )}
 
-            {/* Presets block */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-slate-700">Chọn mẫu in soạn sẵn</span>
-              <div className="grid grid-cols-3 gap-2">
-                {Object.keys(INVOICE_PRESETS).map((pname) => (
-                  <button
-                    key={pname}
-                    type="button"
-                    onClick={() => handleSelectPreset(pname as keyof typeof INVOICE_PRESETS)}
-                    className="py-2.5 px-3 border border-slate-200 rounded-xl text-center font-bold text-xs hover:bg-slate-50 transition-colors text-slate-700 cursor-pointer"
-                  >
-                    {pname}
-                  </button>
-                ))}
-              </div>
+      {/* TAB 3: MẪU HÓA ĐƠN */}
+      {activeTab === 'invoice' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* Config Left Column */}
+          <div className="lg:col-span-7 bg-white border border-[#DCE5F0] rounded-xl p-5 md:p-6 shadow-2xs flex flex-col gap-5">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Printer size={18} className="text-[#2563EB]" />
+                THIẾT LẬP CẤU HÌNH MẪU HÓA ĐƠN IN
+              </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-              <Select
-                id="paperSize"
-                label="Khổ giấy hóa đơn"
-                options={['K57', 'K80', 'A5']}
+            {/* Paper size */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-800">Khổ giấy hóa đơn *</label>
+              <select
                 value={paperSize}
                 onChange={(e) => setPaperSize(e.target.value)}
-              />
-              <Input
-                id="invoiceHeader"
-                label="Tiêu đề Header hóa đơn"
+                className="w-full h-[42px] px-3.5 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] rounded-md text-slate-900 text-xs font-bold outline-none cursor-pointer"
+              >
+                <option value="K57">Khổ nhỏ K57 (57mm)</option>
+                <option value="K80">Khổ tiêu chuẩn K80 (80mm)</option>
+                <option value="A5">Khổ A5</option>
+              </select>
+            </div>
+
+            {/* Header Text */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-800">Tiêu đề Header hóa đơn</label>
+              <input
+                type="text"
                 value={headerText}
                 onChange={(e) => setHeaderText(e.target.value)}
+                className="w-full h-[42px] px-3.5 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] rounded-md text-slate-900 text-xs font-semibold outline-none"
               />
             </div>
 
-            <Input
-              id="invoiceFooter"
-              label="Lời cảm ơn / Footer hóa đơn"
-              value={footerText}
-              onChange={(e) => setFooterText(e.target.value)}
-            />
+            {/* Footer Text */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-800">Lời cảm ơn / Footer hóa đơn</label>
+              <textarea
+                rows={2}
+                value={footerText}
+                onChange={(e) => setFooterText(e.target.value)}
+                className="w-full px-3.5 py-2 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] rounded-md text-slate-900 text-xs font-semibold outline-none resize-none"
+              />
+            </div>
 
-            {/* Fields to toggle checkbox */}
-            <div className="flex flex-col gap-2.5 mt-2">
-              <span className="text-xs font-bold text-slate-700">Các trường hiển thị trên hóa đơn</span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* Exactly 5 Checkbox Toggles */}
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+              <label className="text-xs font-bold text-slate-800">Các trường hiển thị trên hóa đơn (5 trường)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {[
                   { label: 'Logo tiệm', checked: showLogo, set: setShowLogo },
                   { label: 'Mã QR tra cứu', checked: showQr, set: setShowQr },
@@ -439,8 +436,10 @@ export default function AdminZaloInvoiceSettings() {
                 ].map((item) => (
                   <label
                     key={item.label}
-                    className={`flex items-center gap-2.5 px-3 py-2 border rounded-xl cursor-pointer select-none transition-all ${
-                      item.checked ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50/50 border-slate-200 hover:bg-slate-50'
+                    className={`flex items-center gap-2.5 px-3 py-2.5 border rounded-md cursor-pointer select-none transition-colors ${
+                      item.checked
+                        ? 'bg-[#EFF6FF] border-[#BFDBFE] text-[#2563EB] font-bold'
+                        : 'bg-[#F8FAFC] border-[#DCE5F0] hover:bg-slate-100 text-slate-700 font-semibold'
                     }`}
                   >
                     <input
@@ -449,198 +448,164 @@ export default function AdminZaloInvoiceSettings() {
                       onChange={(e) => item.set(e.target.checked)}
                       className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
                     />
-                    <span className="text-xs font-bold">{item.label}</span>
+                    <span className="text-xs truncate">{item.label}</span>
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Sortable block drag-drop mock */}
-            <div className="flex flex-col gap-2 mt-2">
-              <span className="text-xs font-bold text-slate-700">Sắp xếp thứ tự in ấn nội dung</span>
-              <div className="border border-slate-150 rounded-xl p-3 bg-slate-50/50 flex flex-col gap-2">
-                {invoiceLayoutOrder.map((block, idx) => (
-                  <div key={block} className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl shadow-xs text-xs font-bold text-slate-700">
-                    <span className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-md bg-slate-100 flex items-center justify-center font-bold text-[10px] text-slate-450">{idx + 1}</span>
-                      {block}
-                    </span>
-                    <div className="flex gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => moveBlock(idx, 'up')}
-                        disabled={idx === 0}
-                        className={`p-1 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors ${idx === 0 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        <ArrowUp size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveBlock(idx, 'down')}
-                        disabled={idx === invoiceLayoutOrder.length - 1}
-                        className={`p-1 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors ${idx === invoiceLayoutOrder.length - 1 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        <ArrowDown size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
+              <button
+                type="button"
+                onClick={handlePrintTest}
+                className="px-4 py-2 bg-white hover:bg-slate-50 border border-[#DCE5F0] text-slate-700 font-bold text-xs rounded-md transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+              >
+                <Printer size={14} className="text-slate-500" />
+                <span>In thử hóa đơn</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveClick}
+                className="px-5 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-md transition-colors cursor-pointer border-0 shadow-2xs"
+              >
+                Lưu cấu hình
+              </button>
             </div>
           </div>
 
-          {/* Action buttons footer */}
-          <div className="flex items-center justify-end gap-3 mt-2">
-            <Button variant="outline" size="sm" onClick={handlePrintTest} className="flex items-center gap-1 text-xs">
-              <Printer size={14} />
-              In thử hóa đơn
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleSaveClick} className="flex items-center gap-1.5 text-xs font-bold px-6">
-              Lưu cấu hình
-            </Button>
-          </div>
-        </div>
+          {/* Thermal Print Live Preview Right Column */}
+          <div className="lg:col-span-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">
+                LIVE PREVIEW HÓA ĐƠN ({paperSize})
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">IN NHIỆT XEM TRƯỚC</span>
+            </div>
 
-        {/* Right column (Thermal Print Live Preview) */}
-        <div className="lg:col-span-5 w-full min-w-0 flex flex-col gap-4">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Live Preview Hóa Đơn ({paperSize})</h3>
-          
-          {/* Invoice ticket container */}
-          <div className="bg-[#fdfbf7] border-2 border-dashed border-slate-300 rounded-2xl p-6 shadow-sm flex flex-col gap-4 font-mono text-[11px] text-slate-800 leading-relaxed relative min-h-[500px]">
-            
-            {/* Logo preview */}
-            {showLogo && (
-              <div className="flex flex-col items-center gap-1 text-center border-b border-dashed border-slate-200 pb-3">
-                <div className="w-10 h-10 rounded-full border-2 border-slate-800 flex items-center justify-center font-extrabold text-sm">
-                  DU
+            <div className="bg-[#FAF9F5] border-2 border-dashed border-slate-300 rounded-xl p-5 shadow-2xs font-mono text-[11px] text-slate-800 leading-relaxed flex flex-col gap-3 min-h-[460px]">
+              
+              {/* Logo */}
+              {showLogo && (
+                <div className="flex flex-col items-center gap-1 text-center border-b border-dashed border-slate-300 pb-2.5">
+                  <div className="w-9 h-9 rounded-full border-2 border-slate-900 flex items-center justify-center font-black text-xs">
+                    DU
+                  </div>
+                  <strong className="text-[10px] tracking-widest font-black uppercase mt-0.5">DUDI LAUNDRY</strong>
                 </div>
-                <strong className="text-[10px] tracking-widest font-extrabold uppercase mt-1">DUDI LAUNDRY</strong>
+              )}
+
+              {/* Header text */}
+              <div className="text-center font-bold text-xs uppercase leading-tight border-b border-dashed border-slate-300 pb-2.5">
+                {headerText || 'TIỆM GIẶT ỦI'}
               </div>
-            )}
 
-            {/* Custom Header Text */}
-            <div className="text-center font-bold text-xs uppercase leading-tight border-b border-dashed border-slate-200 pb-3">
-              {headerText || 'TIỆM GIẶT ỦI'}
+              {/* Store info */}
+              <div className="flex flex-col gap-1 border-b border-dashed border-slate-300 pb-2 text-[10px]">
+                <div className="flex justify-between"><span>Cửa hàng:</span><span>Chi nhánh Q1</span></div>
+                <div className="flex justify-between"><span>Địa chỉ:</span><span>123 Nguyễn Huệ</span></div>
+                <div className="flex justify-between"><span>Hotline:</span><span>1900 1234</span></div>
+              </div>
+
+              {/* Customer info */}
+              <div className="flex flex-col gap-1 border-b border-dashed border-slate-300 pb-2 text-[10px]">
+                <div className="flex justify-between"><span>Khách hàng:</span><strong>Nguyễn Văn An</strong></div>
+                <div className="flex justify-between"><span>SĐT:</span><span>0901234567</span></div>
+              </div>
+
+              {/* Order items */}
+              <div className="flex flex-col gap-1.5 border-b border-dashed border-slate-300 pb-2.5 text-[10px]">
+                <div className="flex justify-between font-bold border-b border-slate-200 pb-1">
+                  <span>Dịch vụ</span>
+                  <span>SL</span>
+                  <span>Thành tiền</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Giặt sấy quần áo</span>
+                  <span>2.5kg</span>
+                  <span>50.000đ</span>
+                </div>
+                {showWeight && (
+                  <div className="flex justify-between text-slate-500 text-[9px]">
+                    <span>- Trọng lượng đo:</span>
+                    <span>2.5 kg</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>Giày thể thao</span>
+                  <span>1 đôi</span>
+                  <span>40.000đ</span>
+                </div>
+                {showNote && (
+                  <div className="text-slate-500 text-[9px] italic pt-0.5">
+                    * Ghi chú: Giặt sạch vết bùn đất gót giày.
+                  </div>
+                )}
+              </div>
+
+              {/* Total payment */}
+              <div className="flex flex-col gap-1 border-b border-dashed border-slate-300 pb-2 text-[11px] font-bold">
+                <div className="flex justify-between"><span>Tổng cộng:</span><span>90.000đ</span></div>
+                <div className="flex justify-between border-t border-slate-200 pt-1 text-xs font-black text-slate-900">
+                  <span>Thực thu:</span>
+                  <span>90.000đ</span>
+                </div>
+              </div>
+
+              {/* QR code */}
+              {showQr && (
+                <div className="flex flex-col items-center gap-1.5 border-b border-dashed border-slate-300 pb-2.5 text-center">
+                  <div className="w-16 h-16 bg-white border border-slate-300 p-1 flex items-center justify-center">
+                    <div className="w-full h-full bg-slate-900 flex flex-wrap p-0.5 gap-0.5 justify-center content-center">
+                      {Array.from({ length: 16 }).map((_, i) => (
+                        <div key={i} className={`w-2.5 h-2.5 ${i % 3 === 0 || i % 5 === 2 ? 'bg-white' : 'bg-slate-900'}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Quét QR tra cứu đơn</span>
+                </div>
+              )}
+
+              {/* Thanks footer */}
+              {showThanks && (
+                <div className="text-center text-[10px] text-slate-600 italic leading-relaxed pt-1">
+                  {footerText || 'Cảm ơn quý khách!'}
+                </div>
+              )}
+
+              <div className="mt-auto text-center text-[8px] text-slate-400 font-mono border-t border-dashed border-slate-300 pt-2">
+                Mã tra cứu: DUDI-ORD-998822
+              </div>
+
             </div>
-
-            {/* Ordered sections content render */}
-            {invoiceLayoutOrder.map((sectionName) => {
-              if (sectionName === 'Thông tin tiệm') {
-                return (
-                  <div key={sectionName} className="flex flex-col gap-1 border-b border-dashed border-slate-200 pb-2.5">
-                    <div className="flex justify-between"><span>Cửa hàng:</span><span>Chi nhánh Q1</span></div>
-                    <div className="flex justify-between"><span>Địa chỉ:</span><span>123 Nguyễn Huệ</span></div>
-                    <div className="flex justify-between"><span>Hotline:</span><span>1900 1234</span></div>
-                  </div>
-                );
-              }
-              if (sectionName === 'Thông tin khách hàng') {
-                return (
-                  <div key={sectionName} className="flex flex-col gap-1 border-b border-dashed border-slate-200 pb-2.5">
-                    <div className="flex justify-between"><span>Khách hàng:</span><strong>Nguyễn Văn An</strong></div>
-                    <div className="flex justify-between"><span>SĐT:</span><span>0901234567</span></div>
-                  </div>
-                );
-              }
-              if (sectionName === 'Chi tiết đơn hàng') {
-                return (
-                  <div key={sectionName} className="flex flex-col gap-1.5 border-b border-dashed border-slate-200 pb-2.5">
-                    <div className="flex justify-between font-bold border-b border-slate-200 pb-1">
-                      <span>Dịch vụ</span>
-                      <span>SL</span>
-                      <span>Thành tiền</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Giặt sấy quần áo</span>
-                      <span>2.5kg</span>
-                      <span>50.000đ</span>
-                    </div>
-                    {showWeight && (
-                      <div className="flex justify-between text-slate-500 text-[10px]">
-                        <span>- Trọng lượng đo:</span>
-                        <span>2.5 kg</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span>Giày thể thao</span>
-                      <span>1 đôi</span>
-                      <span>40.000đ</span>
-                    </div>
-                    {showNote && (
-                      <div className="text-slate-500 text-[10px] italic pt-1">
-                        * Ghi chú: Giặt sạch vết bùn đất gót giày.
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-              if (sectionName === 'Thanh toán') {
-                return (
-                  <div key={sectionName} className="flex flex-col gap-1 border-b border-dashed border-slate-200 pb-2.5 text-xs font-bold">
-                    <div className="flex justify-between"><span>Tổng cộng:</span><span>90.000đ</span></div>
-                    <div className="flex justify-between text-blue-600"><span>Khuyến mãi:</span><span>-0đ</span></div>
-                    <div className="flex justify-between border-t border-slate-200 pt-1 text-sm font-extrabold">
-                      <span>Thực thu:</span>
-                      <span>90.000đ</span>
-                    </div>
-                  </div>
-                );
-              }
-              if (sectionName === 'Mã QR') {
-                if (!showQr) return null;
-                return (
-                  <div key={sectionName} className="flex flex-col items-center gap-2 border-b border-dashed border-slate-200 pb-3 text-center">
-                    <div className="w-20 h-20 bg-white border border-slate-300 p-1 flex items-center justify-center">
-                      {/* Simulated QR block code */}
-                      <div className="w-full h-full bg-slate-900 flex flex-wrap p-0.5 gap-0.5 justify-center content-center">
-                        {Array.from({ length: 16 }).map((_, i) => (
-                          <div key={i} className={`w-3 h-3 ${i % 3 === 0 || i % 5 === 2 ? 'bg-white' : 'bg-slate-900'}`} />
-                        ))}
-                      </div>
-                    </div>
-                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Quét mã QR để tra cứu tiến độ đơn</span>
-                  </div>
-                );
-              }
-              if (sectionName === 'Chân trang') {
-                if (!showThanks) return null;
-                return (
-                  <div key={sectionName} className="text-center text-[10px] text-slate-600 italic leading-relaxed pt-2">
-                    {footerText || 'Cảm ơn quý khách!'}
-                  </div>
-                );
-              }
-              return null;
-            })}
-
-            <div className="mt-auto text-center text-[8px] text-slate-400 font-bold border-t border-dashed border-slate-200 pt-3">
-              Mã tra cứu: DUDI-ORD-998822
-            </div>
-
           </div>
+
         </div>
+      )}
 
-      </div>
-
-      {/* Connection Test Number input Modal */}
+      {/* TEST ZNS SMS MODAL */}
       <Modal
         isOpen={testSmsModalOpen}
         onClose={() => setTestSmsModalOpen(false)}
         title="Gửi thử tin nhắn ZNS"
         size="sm"
       >
-        <div className="flex flex-col gap-4 text-xs text-slate-800">
-          <Input
-            id="testPhone"
-            label="Số điện thoại người nhận *"
-            value={testPhone}
-            onChange={(e) => setTestPhone(e.target.value)}
-            placeholder="Ví dụ: 0901234567"
-          />
+        <div className="flex flex-col gap-4 text-xs text-slate-800 text-left">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-slate-800">Số điện thoại người nhận *</label>
+            <input
+              type="text"
+              placeholder="Ví dụ: 0901234567"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              className="w-full h-[42px] px-3.5 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] rounded-md text-slate-900 text-xs font-semibold outline-none"
+            />
+          </div>
 
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-1.5 mt-1 text-[11px] text-slate-600">
-            <span className="font-bold text-slate-700">Nội dung tin nhắn giả lập sẽ gửi:</span>
-            <p className="italic bg-white p-2 rounded-lg border border-slate-150 leading-relaxed text-slate-500">
+          <div className="bg-[#F8FAFC] border border-[#DCE5F0] rounded-md p-3 flex flex-col gap-1.5 text-[11px] text-slate-600">
+            <span className="font-bold text-slate-900">Nội dung tin nhắn giả lập sẽ gửi:</span>
+            <p className="italic bg-white p-2 rounded border border-slate-200 leading-relaxed text-slate-700">
               {activeTemplateText
                 .replace(/{Ten_Khach}/g, 'Nguyễn Văn An')
                 .replace(/{Ma_Don}/g, 'ORD-12345')
@@ -649,18 +614,26 @@ export default function AdminZaloInvoiceSettings() {
             </p>
           </div>
 
-          <div className="flex justify-end gap-2.5 mt-4 pt-3 border-t border-slate-100">
-            <Button variant="outline" size="sm" onClick={() => setTestSmsModalOpen(false)}>
+          <div className="flex justify-end gap-2.5 mt-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setTestSmsModalOpen(false)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-md transition-colors cursor-pointer border-0"
+            >
               Hủy
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleSendTestSms}>
+            </button>
+            <button
+              type="button"
+              onClick={handleSendTestSms}
+              className="px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-md transition-colors cursor-pointer border-0 shadow-2xs"
+            >
               Xác nhận gửi
-            </Button>
+            </button>
           </div>
         </div>
       </Modal>
 
-      {/* Save Settings Confirmation */}
+      {/* CONFIRM SAVE DIALOG */}
       <ConfirmDialog
         isOpen={saveConfirmOpen}
         onClose={() => setSaveConfirmOpen(false)}
@@ -670,7 +643,7 @@ export default function AdminZaloInvoiceSettings() {
         }}
         title="Xác nhận lưu cấu hình"
         variant="primary"
-        message="Thay đổi mẫu hóa đơn sẽ ảnh hưởng đến việc in ấn của toàn bộ cửa hàng. Bạn có chắc chắn muốn tiếp tục?"
+        message="Thay đổi mẫu hóa đơn sẽ ảnh hưởng đến việc in ấn của toàn bộ hệ thống cửa hàng. Bạn có chắc chắn muốn tiếp tục?"
       />
     </div>
   );

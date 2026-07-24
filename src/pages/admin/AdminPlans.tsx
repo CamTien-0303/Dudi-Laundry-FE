@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Copy, Ban, Trash2, CheckCircle, AlertTriangle, Layers, Check } from 'lucide-react';
-import {
-  PageHeader,
-  Button,
-  StatusBadge,
-  Input,
-  ConfirmDialog,
-} from '../../components/common';
+import { Plus, Copy, Ban, Trash2, CheckCircle, AlertTriangle, Check, Zap, TrendingUp, Crown } from 'lucide-react';
+import { ConfirmDialog } from '../../components/common';
 import { useToast } from '../../components/common/Toast';
 
 interface Plan {
@@ -23,6 +17,55 @@ interface Plan {
   description: string;
   features: string[];
 }
+
+interface PlanTheme {
+  primaryHex: string;
+  primaryClass: string;
+  bgSoftClass: string;
+  borderSoftClass: string;
+  leftRailClass: string;
+  sublabel: string;
+  icon: React.ReactNode;
+}
+
+const getPlanTheme = (planName: string, planCode: string): PlanTheme => {
+  const nameUpper = (planName || planCode || '').toUpperCase();
+
+  if (nameUpper.includes('PRO')) {
+    return {
+      primaryHex: '#0F766E',
+      primaryClass: 'text-[#0F766E]',
+      bgSoftClass: 'bg-[#ECFDF5]',
+      borderSoftClass: 'border-[#A7F3D0]',
+      leftRailClass: 'border-l-4 border-l-[#0F766E] bg-[#ECFDF5]/60',
+      sublabel: 'Dành cho cửa hàng tăng trưởng',
+      icon: <TrendingUp size={14} className="text-[#0F766E]" />
+    };
+  }
+
+  if (nameUpper.includes('ENTERPRISE')) {
+    return {
+      primaryHex: '#6D28D9',
+      primaryClass: 'text-[#6D28D9]',
+      bgSoftClass: 'bg-[#F5F3FF]',
+      borderSoftClass: 'border-[#DDD6FE]',
+      leftRailClass: 'border-l-4 border-l-[#6D28D9] bg-[#F5F3FF]/60',
+      sublabel: 'Cho chuỗi và doanh nghiệp',
+      icon: <Crown size={14} className="text-[#6D28D9]" />
+    };
+  }
+
+  // Default: Basic
+  return {
+    primaryHex: '#2563EB',
+    primaryClass: 'text-[#2563EB]',
+    bgSoftClass: 'bg-[#EFF6FF]',
+    borderSoftClass: 'border-[#BFDBFE]',
+    leftRailClass: 'border-l-4 border-l-[#2563EB] bg-[#EFF6FF]/60',
+    sublabel: 'Cho cửa hàng nhỏ',
+    icon: <Zap size={14} className="text-[#2563EB]" />
+  };
+};
 
 const AVAILABLE_FEATURES = [
   'Quản lý kho',
@@ -115,6 +158,9 @@ export default function AdminPlans() {
   // Confirmations
   const [priceConfirmOpen, setPriceConfirmOpen] = useState(false);
 
+  // Active Theme based on currently selected/edited plan name/code
+  const activeTheme = getPlanTheme(name, code);
+
   // Sync state to local storage
   useEffect(() => {
     localStorage.setItem('dudi_plans', JSON.stringify(plans));
@@ -157,7 +203,7 @@ export default function AdminPlans() {
   };
 
   const handleCreateNew = () => {
-    setSelectedPlanId('new-plan-' + Date.now());
+    setSelectedPlanId('');
     setName('');
     setCode('');
     setPrice(0);
@@ -180,7 +226,7 @@ export default function AdminPlans() {
     const activePlan = plans.find(p => p.id === selectedPlanId);
     if (!activePlan) return;
 
-    setSelectedPlanId('clone-plan-' + Date.now());
+    setSelectedPlanId('');
     setName(`Bản sao của ${activePlan.name}`);
     setCode(`COPY-${activePlan.code}`);
     setPrice(activePlan.price);
@@ -201,14 +247,18 @@ export default function AdminPlans() {
     setSaveSuccess(false);
     toast(`Đã nhân bản gói ${activePlan.name}. Vui lòng chỉnh sửa và lưu.`, 'info');
   };
+
   const handleStopBusiness = () => {
+    if (!selectedPlanId) return;
     setIsActive(false);
     setPlans(prev =>
       prev.map(p => (p.id === selectedPlanId ? { ...p, isActive: false } : p))
     );
     toast('Đã chuyển gói sang trạng thái Ngừng kinh doanh.', 'warning');
   };
+
   const handleDelete = () => {
+    if (!selectedPlanId) return;
     const activePlan = plans.find(p => p.id === selectedPlanId);
     if (!activePlan) return;
 
@@ -222,16 +272,21 @@ export default function AdminPlans() {
 
     const updatedPlans = plans.filter(p => p.id !== selectedPlanId);
     setPlans(updatedPlans);
-    setSelectedPlanId('');
+    if (updatedPlans.length > 0) {
+      selectPlan(updatedPlans[0]);
+    } else {
+      handleCreateNew();
+    }
     toast(`Đã xóa gói dịch vụ ${activePlan.name}.`, 'success');
   };
 
   const executeSave = () => {
     const finalMaxBranches = unlimitedBranches ? -1 : maxBranches;
     const finalMaxOrders = unlimitedOrders ? -1 : maxOrdersPerMonth;
+    const newId = isNew ? `plan-${code.trim().toLowerCase()}-${Date.now()}` : selectedPlanId;
 
     const newPlanData: Plan = {
-      id: selectedPlanId,
+      id: newId,
       name: name.trim(),
       code: code.trim().toUpperCase(),
       price,
@@ -247,15 +302,18 @@ export default function AdminPlans() {
 
     if (isNew) {
       setPlans(prev => [...prev, newPlanData]);
+      setSelectedPlanId(newId);
+      setIsNew(false);
+      toast('Đã tạo gói dịch vụ mới thành công.', 'success');
     } else {
       setPlans(prev => prev.map(p => (p.id === selectedPlanId ? newPlanData : p)));
+      setIsNew(false);
+      toast('Đã lưu và áp dụng thông tin gói dịch vụ.', 'success');
     }
 
-    setIsNew(false);
     setOriginalPrice(price);
     setSaveSuccess(true);
     setFormErrors({});
-    toast('Đã lưu và áp dụng thông tin gói dịch vụ.', 'success');
   };
 
   const handleSaveClick = (e: React.FormEvent) => {
@@ -292,74 +350,117 @@ export default function AdminPlans() {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800">
-      <PageHeader
-        title="Thiết lập gói dịch vụ"
-        description="Cấu hình bảng giá, hạn dùng và giới hạn tính năng cho đối tác."
-        breadcrumb={[
-          { label: 'Hệ thống', to: '/admin/dashboard' },
-          { label: 'Gói dịch vụ' },
-        ]}
-      />
+    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-4 md:p-8 flex flex-col gap-6 text-left">
+      <style>{`
+        .reveal-hidden {
+          opacity: 1;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .reveal-hidden {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+          }
+          .reveal-hidden.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
 
+      {/* HEADER BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-4">
+        <div>
+          <span className="text-[10px] font-mono font-bold tracking-widest text-[#2563EB] uppercase">
+            CẤU HÌNH BẢNG GIÁ & HẠN DÙNG
+          </span>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+            Thiết lập gói dịch vụ
+          </h1>
+        </div>
+
+        <button
+          onClick={handleCreateNew}
+          className="px-4 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer border-0 shadow-2xs flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+        >
+          <Plus size={16} />
+          <span>Tạo gói mới</span>
+        </button>
+      </div>
+
+      {/* SPLIT LAYOUT (Cột Trái 4 Cols / Cột Phải 8 Cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Side: Packages Cards List */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Danh sách gói</h3>
-            <Button variant="primary" size="sm" onClick={handleCreateNew} className="flex items-center gap-1">
-              <Plus size={14} />
-              Tạo gói mới
-            </Button>
+        {/* CỘT TRÁI (35% / lg:col-span-4): DANH SÁCH GÓI DỊCH VỤ */}
+        <div className="lg:col-span-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between border-b border-[#DCE5F0] pb-2">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500">
+              DANH SÁCH GÓI DỊCH VỤ
+            </span>
+            <span className="text-[10px] font-bold text-slate-400">{plans.length} GÓI</span>
           </div>
 
-          <div className="flex flex-col gap-3.5">
+          <div className="flex flex-col gap-2.5">
             {plans.map((p) => {
               const isSelected = p.id === selectedPlanId;
+              const pTheme = getPlanTheme(p.name, p.code);
+
               return (
                 <div
                   key={p.id}
                   onClick={() => selectPlan(p)}
-                  className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow transition-all cursor-pointer flex flex-col gap-3 relative overflow-hidden select-none ${
-                    isSelected ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-200'
+                  className={`bg-white border rounded-lg p-3.5 shadow-2xs transition-all cursor-pointer flex flex-col gap-2.5 relative overflow-hidden select-none ${
+                    isSelected
+                      ? pTheme.leftRailClass
+                      : 'border-[#DCE5F0] hover:bg-[#F8FAFC]'
                   }`}
                 >
-                  {/* Badge Defaults */}
-                  {p.isTrialDefault && (
-                    <div className="absolute top-0 right-0 bg-blue-500 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-bl-lg">
-                      Gói mặc định Trial
+                  {/* Top line: Icon Circle + Name + Sublabel + Badges */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${pTheme.bgSoftClass} ${pTheme.borderSoftClass} border shrink-0`}>
+                        {pTheme.icon}
+                      </div>
+                      
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-black text-sm ${isSelected ? pTheme.primaryClass : 'text-slate-900'}`}>
+                            {p.name}
+                          </span>
+                          <span className={`font-mono text-[9px] font-bold px-1.5 py-0.2 rounded border ${pTheme.bgSoftClass} ${pTheme.primaryClass} ${pTheme.borderSoftClass}`}>
+                            {p.code}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-semibold">{pTheme.sublabel}</span>
+                      </div>
                     </div>
-                  )}
 
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center border font-extrabold text-sm ${
-                      p.isActive ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-100 text-slate-400 border-slate-200'
-                    }`}>
-                      {p.name.charAt(0)}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-extrabold text-sm text-slate-800">{p.name}</span>
-                      <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">{p.code}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {p.isTrialDefault && (
+                        <span className="text-[9px] font-extrabold text-[#2563EB] bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded">
+                          Trial
+                        </span>
+                      )}
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                        p.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
+                      }`}>
+                        {p.isActive ? 'Bán' : 'Ẩn'}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-baseline justify-between border-t border-slate-50 pt-2 text-xs">
-                    <div>
-                      <strong className="text-slate-800 text-sm">{p.price.toLocaleString('vi-VN')}đ</strong>
-                      <span className="text-slate-400 font-semibold text-[10px]"> / {p.duration} ngày</span>
+                  {/* Price & Partner stats */}
+                  <div className="flex items-baseline justify-between text-xs pt-1 border-t border-slate-100">
+                    <div className="flex items-baseline gap-1">
+                      <strong className="text-slate-900 font-black text-sm">
+                        {p.price.toLocaleString('vi-VN')}đ
+                      </strong>
+                      <span className="text-slate-400 font-semibold text-[10px]">/ {p.duration} ngày</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <StatusBadge
-                        label={p.isActive ? 'Đang bán' : 'Bị ẩn'}
-                        variant={p.isActive ? 'success' : 'default'}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="text-[10px] text-slate-500 font-semibold flex justify-between items-center bg-slate-50 p-2 rounded-lg">
-                    <span>Số đối tác đang dùng:</span>
-                    <strong className="text-slate-700 font-bold">{p.partnersCount}</strong>
+                    <span className="text-[10px] text-slate-500 font-semibold">
+                      Đối tác dùng: <strong className="text-slate-800 font-bold">{p.partnersCount}</strong>
+                    </span>
                   </div>
                 </div>
               );
@@ -367,213 +468,249 @@ export default function AdminPlans() {
           </div>
         </div>
 
-        {/* Right Side: Package Detail & Editing Form */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2.5 mb-4 flex items-center gap-2">
-              <Layers size={18} className="text-blue-500" />
-              {isNew ? 'Chi tiết gói dịch vụ mới' : 'Chi tiết gói dịch vụ cấu hình'}
-            </h3>
+        {/* CỘT PHẢI (65% / lg:col-span-8): EDITOR PANEL (Accent color according to selected plan) */}
+        <div className="lg:col-span-8 bg-white border border-[#DCE5F0] rounded-xl p-5 md:p-6 shadow-2xs flex flex-col gap-6 text-left">
+          
+          {/* Header with active plan icon and accent title */}
+          <div className="flex items-center justify-between border-b border-[#DCE5F0] pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activeTheme.bgSoftClass} ${activeTheme.borderSoftClass} border`}>
+                {activeTheme.icon}
+              </div>
+              <h2 className={`text-base font-black tracking-wider uppercase ${activeTheme.primaryClass}`}>
+                {isNew ? 'THÊM GÓI DỊCH VỤ MỚI' : `CẤU HÌNH GÓI: ${name || code}`}
+              </h2>
+            </div>
+            {!isNew && (
+              <span className="text-xs font-mono font-bold text-slate-400">ID: {selectedPlanId}</span>
+            )}
+          </div>
 
-            {/* Save Success Notice */}
-            {saveSuccess && (
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex flex-col gap-1 text-emerald-800 mb-5 animate-fadeIn">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="text-emerald-500 shrink-0" size={16} />
-                  <span className="font-extrabold text-xs">Đã lưu và áp dụng thông tin gói dịch vụ.</span>
+          {/* Save Success Notice */}
+          {saveSuccess && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3.5 flex items-center gap-2.5 text-xs text-emerald-800 animate-fadeIn">
+              <CheckCircle className="text-emerald-600 shrink-0" size={16} />
+              <span className="font-extrabold">Đã lưu và áp dụng thành công thông tin gói dịch vụ.</span>
+            </div>
+          )}
+
+          {/* Delete Error Warning */}
+          {formErrors.delete && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3.5 flex items-start gap-2.5 text-xs text-red-700 animate-fadeIn">
+              <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+              <span className="font-bold">{formErrors.delete}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveClick} className="flex flex-col gap-6">
+            
+            {/* SECTION 01 · THÔNG TIN GÓI */}
+            <div className="flex flex-col gap-3">
+              <div className={`text-[11px] font-mono font-bold tracking-wider uppercase border-b border-slate-100 pb-1 ${activeTheme.primaryClass}`}>
+                01 · THÔNG TIN GÓI
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-slate-800">Tên gói *</label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: Premium Plan"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
+                    }}
+                    className={`w-full h-[42px] px-3.5 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                      formErrors.name ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                    }`}
+                  />
+                  {formErrors.name && <span className="text-red-500 text-[10px] font-semibold">{formErrors.name}</span>}
                 </div>
-                <span className="text-[10px] text-slate-500 font-semibold pl-6">
-                  Thông tin gói mới sẽ hiển thị trong dropdown chọn gói ở màn hình chi tiết đối tác.
-                </span>
-              </div>
-            )}
 
-            {/* Delete Error Warning */}
-            {formErrors.delete && (
-              <div className="bg-red-50 border border-red-100 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-red-700 mb-5 animate-fadeIn">
-                <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                <span className="font-bold">{formErrors.delete}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveClick} className="flex flex-col gap-5">
-              {/* Basic Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  id="planName"
-                  label="Tên gói *"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
-                  }}
-                  error={formErrors.name}
-                  placeholder="Ví dụ: Premium Plan"
-                />
-
-                <Input
-                  id="planCode"
-                  label="Mã gói dịch vụ *"
-                  value={code}
-                  readOnly={!isNew}
-                  className={!isNew ? 'bg-slate-50 text-slate-500 font-semibold border-slate-200 cursor-not-allowed' : ''}
-                  onChange={(e) => {
-                    setCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''));
-                    if (formErrors.code) setFormErrors(prev => ({ ...prev, code: '' }));
-                  }}
-                  error={formErrors.code}
-                  placeholder="Ví dụ: PREMIUM"
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-slate-800">Mã gói dịch vụ *</label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: PREMIUM"
+                    value={code}
+                    readOnly={!isNew}
+                    onChange={(e) => {
+                      setCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''));
+                      if (formErrors.code) setFormErrors(prev => ({ ...prev, code: '' }));
+                    }}
+                    className={`w-full h-[42px] px-3.5 border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                      !isNew ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-[#DCE5F0]' : 'bg-[#F8FAFC] border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                    }`}
+                  />
+                  {formErrors.code && <span className="text-red-500 text-[10px] font-semibold">{formErrors.code}</span>}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  id="planPrice"
-                  label="Giá niêm yết (VNĐ) *"
-                  type="number"
-                  value={price}
-                  onChange={(e) => {
-                    setPrice(parseInt(e.target.value, 10) || 0);
-                    if (formErrors.price) setFormErrors(prev => ({ ...prev, price: '' }));
-                  }}
-                  error={formErrors.price}
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-slate-800">Giá niêm yết (VNĐ) *</label>
+                  <input
+                    type="number"
+                    value={price}
+                    onChange={(e) => {
+                      setPrice(parseInt(e.target.value, 10) || 0);
+                      if (formErrors.price) setFormErrors(prev => ({ ...prev, price: '' }));
+                    }}
+                    className={`w-full h-[42px] px-3.5 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                      formErrors.price ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                    }`}
+                  />
+                  {formErrors.price && <span className="text-red-500 text-[10px] font-semibold">{formErrors.price}</span>}
+                </div>
 
-                <Input
-                  id="planDuration"
-                  label="Thời hạn hiệu lực (ngày) *"
-                  type="number"
-                  value={duration}
-                  onChange={(e) => {
-                    setDuration(parseInt(e.target.value, 10) || 0);
-                    if (formErrors.duration) setFormErrors(prev => ({ ...prev, duration: '' }));
-                  }}
-                  error={formErrors.duration}
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-slate-800">Thời hạn hiệu lực (ngày) *</label>
+                  <input
+                    type="number"
+                    value={duration}
+                    onChange={(e) => {
+                      setDuration(parseInt(e.target.value, 10) || 0);
+                      if (formErrors.duration) setFormErrors(prev => ({ ...prev, duration: '' }));
+                    }}
+                    className={`w-full h-[42px] px-3.5 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                      formErrors.duration ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                    }`}
+                  />
+                  {formErrors.duration && <span className="text-red-500 text-[10px] font-semibold">{formErrors.duration}</span>}
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700">Mô tả gói dịch vụ *</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-800">Mô tả gói dịch vụ *</label>
                 <textarea
-                  rows={3}
-                  className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-md text-slate-700 text-xs focus:border-primary focus:bg-white outline-none transition-all placeholder-slate-400 resize-none font-semibold text-sm ${
-                    formErrors.description ? 'border-red-300' : 'border-slate-200'
-                  }`}
+                  rows={2}
                   placeholder="Mô tả tóm tắt tính năng chính của gói dịch vụ..."
                   value={description}
                   onChange={(e) => {
                     setDescription(e.target.value);
                     if (formErrors.description) setFormErrors(prev => ({ ...prev, description: '' }));
                   }}
+                  className={`w-full px-3.5 py-2.5 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all resize-none ${
+                    formErrors.description ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                  }`}
                 />
-                {formErrors.description && (
-                  <span className="text-[10px] text-red-500 font-semibold pl-1">{formErrors.description}</span>
-                )}
+                {formErrors.description && <span className="text-red-500 text-[10px] font-semibold">{formErrors.description}</span>}
+              </div>
+            </div>
+
+            {/* SECTION 02 · GIỚI HẠN SỬ DỤNG */}
+            <div className="flex flex-col gap-3 pt-2">
+              <div className={`text-[11px] font-mono font-bold tracking-wider uppercase border-b border-slate-100 pb-1 ${activeTheme.primaryClass}`}>
+                02 · GIỚI HẠN SỬ DỤNG
               </div>
 
-              {/* Resource Quota Block */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-4">
-                <h4 className="text-xs font-extrabold text-slate-750 uppercase tracking-wider">Khối giới hạn tài nguyên</h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-slate-700">Số chi nhánh tối đa</label>
-                      <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-500 select-none">
-                        <input
-                          type="checkbox"
-                          checked={unlimitedBranches}
-                          onChange={(e) => setUnlimitedBranches(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                        <span>Không giới hạn</span>
-                      </label>
-                    </div>
-                    <Input
-                      id="branchesLimit"
-                      type="number"
-                      value={maxBranches}
-                      disabled={unlimitedBranches}
-                      className={unlimitedBranches ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : ''}
-                      onChange={(e) => setMaxBranches(parseInt(e.target.value, 10) || 1)}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-slate-700">Số đơn hàng tối đa/tháng</label>
-                      <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-500 select-none">
-                        <input
-                          type="checkbox"
-                          checked={unlimitedOrders}
-                          onChange={(e) => setUnlimitedOrders(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                        <span>Không giới hạn</span>
-                      </label>
-                    </div>
-                    <Input
-                      id="ordersLimit"
-                      type="number"
-                      value={maxOrdersPerMonth}
-                      disabled={unlimitedOrders}
-                      className={unlimitedOrders ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : ''}
-                      onChange={(e) => setMaxOrdersPerMonth(parseInt(e.target.value, 10) || 1)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Feature Selection Permissions */}
-              <div>
-                <h4 className="text-xs font-extrabold text-slate-750 uppercase tracking-wider mb-2.5">Bảng phân quyền tính năng</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {AVAILABLE_FEATURES.map((feature) => {
-                    const isChecked = selectedFeatures.includes(feature);
-                    return (
-                      <label
-                        key={feature}
-                        className={`flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer select-none transition-all ${
-                          isChecked ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50/50 border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleFeatureToggle(feature)}
-                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
-                        />
-                        <span className="text-xs font-bold truncate">{feature}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Status and default trial configuration */}
-              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold text-slate-750">Trạng thái gói</label>
-                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800">Số chi nhánh tối đa</label>
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600 select-none">
                       <input
                         type="checkbox"
-                        checked={isActive}
-                        onChange={(e) => setIsActive(e.target.checked)}
-                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        checked={unlimitedBranches}
+                        onChange={(e) => setUnlimitedBranches(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
                       />
-                      <span className={`text-xs font-extrabold ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        {isActive ? 'Đang hoạt động (Active)' : 'Tạm khóa (Inactive)'}
-                      </span>
+                      <span>Không giới hạn</span>
                     </label>
                   </div>
-                  {!isActive && (
-                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 border border-amber-100 rounded w-fit">
-                      Gói này sẽ bị ẩn khỏi trang đăng ký/gia hạn.
-                    </span>
-                  )}
+                  <input
+                    type="number"
+                    value={maxBranches}
+                    disabled={unlimitedBranches}
+                    onChange={(e) => setMaxBranches(parseInt(e.target.value, 10) || 1)}
+                    className={`w-full h-[42px] px-3.5 border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                      unlimitedBranches ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-[#DCE5F0]' : 'bg-[#F8FAFC] border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                    }`}
+                  />
                 </div>
 
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800">Số đơn hàng tối đa/tháng</label>
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600 select-none">
+                      <input
+                        type="checkbox"
+                        checked={unlimitedOrders}
+                        onChange={(e) => setUnlimitedOrders(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>Không giới hạn</span>
+                    </label>
+                  </div>
+                  <input
+                    type="number"
+                    value={maxOrdersPerMonth}
+                    disabled={unlimitedOrders}
+                    onChange={(e) => setMaxOrdersPerMonth(parseInt(e.target.value, 10) || 1)}
+                    className={`w-full h-[42px] px-3.5 border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                      unlimitedOrders ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-[#DCE5F0]' : 'bg-[#F8FAFC] border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                    }`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 03 · QUYỀN TÍNH NĂNG (Theme-tinted when checked) */}
+            <div className="flex flex-col gap-3 pt-2">
+              <div className={`text-[11px] font-mono font-bold tracking-wider uppercase border-b border-slate-100 pb-1 ${activeTheme.primaryClass}`}>
+                03 · QUYỀN TÍNH NĂNG
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                {AVAILABLE_FEATURES.map((feature) => {
+                  const isChecked = selectedFeatures.includes(feature);
+                  return (
+                    <label
+                      key={feature}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 border rounded-md cursor-pointer select-none transition-colors ${
+                        isChecked
+                          ? `${activeTheme.bgSoftClass} ${activeTheme.borderSoftClass} ${activeTheme.primaryClass} font-bold`
+                          : 'bg-[#F8FAFC] border-[#DCE5F0] hover:bg-slate-100 text-slate-700 font-semibold'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleFeatureToggle(feature)}
+                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                      />
+                      <span className="text-xs truncate">{feature}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECTION 04 · PHÁT HÀNH GÓI */}
+            <div className="flex flex-col gap-3 pt-2">
+              <div className={`text-[11px] font-mono font-bold tracking-wider uppercase border-b border-slate-100 pb-1 ${activeTheme.primaryClass}`}>
+                04 · PHÁT HÀNH GÓI
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#F8FAFC] border border-[#DCE5F0] rounded-md p-3.5">
+                {/* Active Toggle */}
+                <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-slate-900">Trạng thái phát hành</span>
+                    <span className={`text-[10px] font-bold ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {isActive ? 'Đang mở bán (Active)' : 'Ngừng kinh doanh (Inactive)'}
+                    </span>
+                  </div>
+                </label>
+
+                {/* Trial Default Toggle */}
                 <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -581,47 +718,69 @@ export default function AdminPlans() {
                     onChange={(e) => setIsTrialDefault(e.target.checked)}
                     className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-bold text-slate-700">Thiết lập làm gói Trial mặc định</span>
-                    <span className="text-[9px] text-slate-400 font-semibold">Tự động kích hoạt khi có đối tác mới đăng ký thử nghiệm.</span>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-slate-900">Gói Trial mặc định</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Gán tự động khi đăng ký thử</span>
                   </div>
                 </label>
               </div>
+            </div>
 
-              {/* Action Buttons Block */}
-              <div className="flex flex-wrap gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-                <div className="flex flex-wrap gap-2 mr-auto">
-                  {!isNew && (
-                    <>
-                      <Button variant="outline" size="sm" onClick={handleClone} className="flex items-center gap-1 text-xs">
-                        <Copy size={13} />
-                        Nhân bản gói
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleStopBusiness} className="flex items-center gap-1 text-xs text-amber-600 hover:bg-amber-50 border-amber-250">
-                        <Ban size={13} />
-                        Ngừng kinh doanh
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleDelete} className="flex items-center gap-1 text-xs text-red-650 hover:bg-red-50 border-red-200">
-                        <Trash2 size={13} />
-                        Xóa gói
-                      </Button>
-                    </>
-                  )}
-                </div>
+            {/* FIXED FOOTER ACTION HIERARCHY */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-[#DCE5F0] mt-2">
+              
+              {/* Left actions: Clone / Stop / Delete */}
+              <div className="flex flex-wrap items-center gap-2">
+                {!isNew && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleClone}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded transition-colors cursor-pointer border-0 flex items-center gap-1"
+                    >
+                      <Copy size={13} />
+                      <span>Nhân bản gói</span>
+                    </button>
 
-                <Button variant="primary" size="sm" type="submit" className="flex items-center gap-1 text-xs px-4">
-                  <Check size={14} />
-                  Lưu & Áp dụng
-                </Button>
+                    <button
+                      type="button"
+                      onClick={handleStopBusiness}
+                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded font-bold text-xs transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <Ban size={13} />
+                      <span>Ngừng kinh doanh</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded font-bold text-xs transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 size={13} />
+                      <span>Xóa gói</span>
+                    </button>
+                  </>
+                )}
               </div>
 
-            </form>
-          </div>
+              {/* Right primary action: Save & Apply using Plan Accent Color */}
+              <button
+                type="submit"
+                style={{ backgroundColor: activeTheme.primaryHex }}
+                className="px-5 py-2.5 hover:opacity-90 text-white font-bold text-xs rounded-md transition-all cursor-pointer border-0 shadow-2xs flex items-center justify-center gap-1.5 shrink-0"
+              >
+                <Check size={15} />
+                <span>{isNew ? 'Tạo gói dịch vụ' : 'Lưu & Áp dụng'}</span>
+              </button>
+
+            </div>
+
+          </form>
         </div>
 
       </div>
 
-      {/* Confirmation modal for updating prices */}
+      {/* CONFIRMATION DIALOG FOR UPDATING PRICES */}
       <ConfirmDialog
         isOpen={priceConfirmOpen}
         onClose={() => setPriceConfirmOpen(false)}

@@ -1,16 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { CheckCircle, Download } from 'lucide-react';
-import {
-  PageHeader,
-  Button,
-  StatusBadge,
-  DataTable,
-  FilterBar,
-  Select,
-  ConfirmDialog,
-  Modal,
-} from '../../components/common';
+import { CheckCircle, Download, Search, ArrowUpRight } from 'lucide-react';
+import { ConfirmDialog, Modal } from '../../components/common';
 import { useToast } from '../../components/common/Toast';
 
 interface Transaction {
@@ -83,16 +74,6 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   }
 ];
 
-const getStatusVariant = (status: string): 'success' | 'warning' | 'error' | 'info' | 'default' => {
-  switch (status) {
-    case 'Hoàn tất': return 'success';
-    case 'Đang chờ': return 'warning';
-    case 'Đang chờ quá 48h': return 'error';
-    case 'Đã hủy': return 'default';
-    default: return 'default';
-  }
-};
-
 const formatCurrency = (val: number): string => {
   const isNegative = val < 0;
   const absVal = Math.abs(val);
@@ -111,6 +92,7 @@ export default function AdminTransactions() {
 
   // Advanced Filters State
   const [search, setSearch] = useState('');
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState('Tất cả');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('Tất cả');
@@ -194,262 +176,492 @@ export default function AdminTransactions() {
     const matchesType = selectedType === 'Tất cả' || t.type === selectedType;
     const matchesStatus = selectedStatus === 'Tất cả' || t.status === selectedStatus;
 
-    // Date range filter
+    // Date / Time filter logic
     let matchesDate = true;
-    if (startDate) {
-      // Convert transaction time (DD/MM/YYYY HH:MM) to date object
+    if (selectedTimeFilter === 'Hôm nay') {
+      matchesDate = t.time.startsWith('15/07/2026');
+    } else if (selectedTimeFilter === '7 ngày') {
       const tDateParts = t.time.split(' ')[0].split('/');
-      const tDate = new Date(parseInt(tDateParts[2]), parseInt(tDateParts[1]) - 1, parseInt(tDateParts[0]));
-      const sDate = new Date(startDate);
-      matchesDate = matchesDate && tDate >= sDate;
-    }
-    if (endDate) {
-      const tDateParts = t.time.split(' ')[0].split('/');
-      const tDate = new Date(parseInt(tDateParts[2]), parseInt(tDateParts[1]) - 1, parseInt(tDateParts[0]));
-      const eDate = new Date(endDate);
-      matchesDate = matchesDate && tDate <= eDate;
+      const day = parseInt(tDateParts[0], 10);
+      matchesDate = day >= 9 && day <= 15 && tDateParts[1] === '07';
+    } else if (selectedTimeFilter === 'Tháng này') {
+      matchesDate = t.time.includes('/07/2026');
+    } else if (selectedTimeFilter === 'Tháng trước') {
+      matchesDate = t.time.includes('/06/2026');
+    } else if (selectedTimeFilter === 'Tùy chọn') {
+      if (startDate) {
+        const tDateParts = t.time.split(' ')[0].split('/');
+        const tDate = new Date(parseInt(tDateParts[2]), parseInt(tDateParts[1]) - 1, parseInt(tDateParts[0]));
+        const sDate = new Date(startDate);
+        matchesDate = matchesDate && tDate >= sDate;
+      }
+      if (endDate) {
+        const tDateParts = t.time.split(' ')[0].split('/');
+        const tDate = new Date(parseInt(tDateParts[2]), parseInt(tDateParts[1]) - 1, parseInt(tDateParts[0]));
+        const eDate = new Date(endDate);
+        matchesDate = matchesDate && tDate <= eDate;
+      }
     }
 
     return matchesSearch && matchesMethod && matchesType && matchesStatus && matchesDate;
   });
 
-  const columns = [
-    {
-      key: 'code',
-      header: 'Mã giao dịch',
-      render: (row: Transaction) => <span className="font-extrabold text-slate-800">{row.code}</span>
-    },
-    {
-      key: 'time',
-      header: 'Thời gian',
-      render: (row: Transaction) => <span className="text-slate-500 font-semibold">{row.time}</span>
-    },
-    {
-      key: 'partnerName',
-      header: 'Tên đối tác',
-      render: (row: Transaction) => (
-        <button
-          onClick={() => navigate(`/admin/partners/${row.partnerCode}`)}
-          className="font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left cursor-pointer"
-        >
-          {row.partnerName}
-        </button>
-      )
-    },
-    {
-      key: 'content',
-      header: 'Nội dung',
-      render: (row: Transaction) => <span className="font-medium text-slate-650">{row.content}</span>
-    },
-    {
-      key: 'method',
-      header: 'Phương thức',
-      render: (row: Transaction) => <span className="text-slate-500 font-bold">{row.method}</span>
-    },
-    {
-      key: 'type',
-      header: 'Loại giao dịch',
-      render: (row: Transaction) => {
-        if (row.type === 'Nâng cấp gói') {
-          return <StatusBadge label={row.type} variant="info" />;
-        }
-        return <span className="font-bold text-slate-650">{row.type}</span>;
-      }
-    },
-    {
-      key: 'amount',
-      header: 'Số tiền',
-      className: 'text-right font-extrabold',
-      render: (row: Transaction) => (
-        <span className={row.amount < 0 ? 'text-red-600' : 'text-slate-800'}>
-          {formatCurrency(row.amount)}
-        </span>
-      )
-    },
-    {
-      key: 'status',
-      header: 'Trạng thái',
-      render: (row: Transaction) => <StatusBadge label={row.status} variant={getStatusVariant(row.status)} />
-    },
-    {
-      key: 'actions',
-      header: 'Thao tác',
-      className: 'text-right',
-      render: (row: Transaction) => {
-        const isPending = row.status === 'Đang chờ' || row.status === 'Đang chờ quá 48h';
-        const isCompleted = row.status === 'Hoàn tất' && row.amount > 0; // Negative amounts represent refunds and cannot be refunded again
+  // Calculate Cashflow Health metrics from current transactions
+  const totalCollected = transactions
+    .filter(t => t.status === 'Hoàn tất' && t.amount > 0)
+    .reduce((sum, t) => sum + t.amount, 0);
 
-        return (
-          <div className="flex justify-end gap-1">
-            <button
-              onClick={() => handleViewInvoice(row)}
-              className="px-2 py-1 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer"
-            >
-              Xem hóa đơn
-            </button>
-            {isPending && (
-              <button
-                onClick={() => handleCollectClick(row)}
-                className="px-2 py-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded transition-colors cursor-pointer"
-              >
-                Xác nhận đã thu tiền
-              </button>
-            )}
-            {isCompleted && (
-              <button
-                onClick={() => handleRefundClick(row)}
-                className="px-2 py-1 text-[11px] font-bold text-red-650 bg-red-50 hover:bg-red-100 rounded transition-colors cursor-pointer"
-              >
-                Hoàn tiền
-              </button>
-            )}
-          </div>
-        );
-      }
-    }
-  ];
+  const totalPending = transactions
+    .filter(t => t.status === 'Đang chờ')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalOverdue = transactions
+    .filter(t => t.status === 'Đang chờ quá 48h')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalAdjusted = transactions
+    .filter(t => t.status === 'Đã hủy' || t.amount < 0)
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const isFilterActive =
+    !!search ||
+    selectedTimeFilter !== 'Tất cả' ||
+    !!startDate ||
+    !!endDate ||
+    selectedMethod !== 'Tất cả' ||
+    selectedType !== 'Tất cả' ||
+    selectedStatus !== 'Tất cả';
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn pb-12">
-      {/* Header section with export options */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-        <PageHeader
-          title="Quản lý doanh thu và thanh toán"
-          description="Theo dõi doanh thu, giao dịch và các khoản thanh toán của đối tác."
-          breadcrumb={[
-            { label: 'Hệ thống', to: '/admin/dashboard' },
-            { label: 'Tài chính' },
-          ]}
-        />
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => handleExport('Excel')} className="flex items-center gap-1.5 text-xs font-bold">
-            <Download size={14} />
-            Xuất Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('PDF')} className="flex items-center gap-1.5 text-xs font-bold">
-            <Download size={14} />
-            Xuất PDF
-          </Button>
+    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-4 md:p-8 flex flex-col gap-6 text-left">
+      <style>{`
+        .reveal-hidden {
+          opacity: 1;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .reveal-hidden {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+          }
+          .reveal-hidden.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
+      {/* 1. HEADER (No heavy hero, clean export actions) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-4">
+        <div>
+          <span className="text-[10px] font-mono font-bold tracking-widest text-[#2563EB] uppercase">
+            FINANCE & RECONCILIATION
+          </span>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+            Quản lý doanh thu và thanh toán
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => handleExport('Excel')}
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-[#DCE5F0] rounded-lg text-slate-700 font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+          >
+            <Download size={13} className="text-slate-500" />
+            <span>Xuất Excel</span>
+          </button>
+          <button
+            onClick={() => handleExport('PDF')}
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-[#DCE5F0] rounded-lg text-slate-700 font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+          >
+            <Download size={13} className="text-slate-500" />
+            <span>Xuất PDF</span>
+          </button>
         </div>
       </div>
 
-      {/* Financial Summary Cards with Mini trend SVG line chart */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Tổng doanh thu</span>
-            <strong className="text-xl font-extrabold text-slate-800">128.000.000đ</strong>
-          </div>
-          {/* SVG sparkline chart */}
-          <svg className="w-16 h-8 text-emerald-500 shrink-0" viewBox="0 0 100 30" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M 0 25 Q 15 12 30 20 T 60 5 T 90 15 T 100 2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-0.5">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Doanh thu tháng này</span>
-          <strong className="text-xl font-extrabold text-slate-800">18.500.000đ</strong>
-          <span className="text-[9px] text-emerald-600 font-bold mt-1">↑ +12.4% so với tháng trước</span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-0.5">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Giao dịch chờ xử lý</span>
-          <strong className="text-xl font-extrabold text-amber-500">3</strong>
-          <span className="text-[9px] text-slate-400 font-semibold mt-1">Yêu cầu cần Platform Admin duyệt</span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-0.5">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Chưa thanh toán</span>
-          <strong className="text-xl font-extrabold text-red-500">2</strong>
-          <span className="text-[9px] text-red-600 font-bold mt-1">Yêu cầu nâng cấp/gia hạn chưa trả tiền</span>
-        </div>
-      </div>
-
-      {/* Advanced Filter section */}
-      <FilterBar onClear={() => {
-        setSearch('');
-        setStartDate('');
-        setEndDate('');
-        setSelectedMethod('Tất cả');
-        setSelectedType('Tất cả');
-        setSelectedStatus('Tất cả');
-      }} showClear={!!search || !!startDate || !!endDate || selectedMethod !== 'Tất cả' || selectedType !== 'Tất cả' || selectedStatus !== 'Tất cả'}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
-          <div className="flex flex-col gap-1 w-full">
-            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Từ khóa</label>
-            <input
-              type="text"
-              placeholder="Đối tác hoặc Mã giao dịch..."
-              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-700 focus:border-blue-500 font-semibold"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+      {/* 2. KHỐI TỔNG QUAN TÀI CHÍNH (Financial Summary Strip - Soft Pastel Backgrounds) */}
+      <section className="w-full bg-white border border-[#DCE5F0] rounded-xl p-5 md:p-6 shadow-2xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          {/* Card 1: Tổng doanh thu (Nổi bật nhất, số lớn) */}
+          <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg p-4 flex flex-col gap-1">
+            <span className="text-[10px] font-mono font-bold text-[#2563EB] uppercase tracking-wider">TỔNG DOANH THU</span>
+            <span className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">128.000.000đ</span>
+            <span className="text-[11px] font-bold text-blue-700 mt-1 flex items-center gap-1">
+              <ArrowUpRight size={13} /> Toàn bộ hệ thống DUDI
+            </span>
           </div>
 
-          <div className="flex flex-col gap-1 w-full">
-            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Từ ngày</label>
-            <input
-              type="date"
-              className="w-full px-3 py-1 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-750 focus:border-blue-500 font-semibold h-[30px]"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+          {/* Card 2: Doanh thu tháng này */}
+          <div className="bg-emerald-50/60 border border-emerald-200 rounded-lg p-4 flex flex-col gap-1">
+            <span className="text-[10px] font-mono font-bold text-emerald-700 uppercase tracking-wider">DOANH THU THÁNG NÀY</span>
+            <span className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">18.500.000đ</span>
+            <span className="text-[11px] font-bold text-emerald-700 mt-1">↑ +12.4% so với tháng trước</span>
           </div>
 
-          <div className="flex flex-col gap-1 w-full">
-            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Đến ngày</label>
-            <input
-              type="date"
-              className="w-full px-3 py-1 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-750 focus:border-blue-500 font-semibold h-[30px]"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
+          {/* Card 3: Giao dịch chờ xử lý (Accent Amber) */}
+          <div className="bg-amber-50/60 border border-amber-200 rounded-lg p-4 flex flex-col gap-1">
+            <span className="text-[10px] font-mono font-bold text-amber-700 uppercase tracking-wider">GIAO DỊCH CHỜ XỬ LÝ</span>
+            <span className="text-2xl md:text-3xl font-black text-amber-700 tracking-tight">3</span>
+            <span className="text-[11px] font-bold text-amber-800 mt-1">Yêu cầu cần Admin duyệt</span>
           </div>
 
-          <div className="flex flex-col gap-1 w-full">
-            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Phương thức</label>
-            <Select
-              options={['Tất cả', 'Chuyển khoản', 'Ví điện tử', 'Tiền mặt']}
+          {/* Card 4: Chưa thanh toán (Accent Red) */}
+          <div className="bg-red-50/60 border border-red-200 rounded-lg p-4 flex flex-col gap-1">
+            <span className="text-[10px] font-mono font-bold text-red-700 uppercase tracking-wider">CHƯA THANH TOÁN</span>
+            <span className="text-2xl md:text-3xl font-black text-red-700 tracking-tight">2</span>
+            <span className="text-[11px] font-bold text-red-800 mt-1">Yêu cầu gia hạn/nâng cấp chưa trả tiền</span>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 3. TÌNH TRẠNG DÒNG TIỀN (Cashflow Health Strip directly below summary) */}
+      <section className="w-full bg-white border border-[#DCE5F0] rounded-xl p-4 md:p-5 shadow-2xs flex flex-col gap-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-900">
+            TÌNH TRẠNG DÒNG TIỀN (REALTIME CASHFLOW HEALTH)
+          </span>
+          <span className="text-[10px] font-bold text-slate-400">ĐỐI SOÁT TỰ ĐỘNG</span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          
+          {/* Đã thu */}
+          <div className="flex flex-col gap-1 bg-[#F8FAFC] border border-slate-200 p-3 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Đã thu</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            </div>
+            <strong className="text-sm font-black text-slate-900">{formatCurrency(totalCollected)}</strong>
+            <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden mt-1">
+              <div className="bg-emerald-500 h-full w-[85%]"></div>
+            </div>
+          </div>
+
+          {/* Đang chờ xác nhận */}
+          <div className="flex flex-col gap-1 bg-[#F8FAFC] border border-slate-200 p-3 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Đang chờ xác nhận</span>
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            </div>
+            <strong className="text-sm font-black text-amber-700">{formatCurrency(totalPending)}</strong>
+            <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden mt-1">
+              <div className="bg-amber-500 h-full w-[40%]"></div>
+            </div>
+          </div>
+
+          {/* Quá hạn */}
+          <div className="flex flex-col gap-1 bg-[#F8FAFC] border border-slate-200 p-3 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Quá hạn (&gt;48h)</span>
+              <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            </div>
+            <strong className="text-sm font-black text-red-700">{formatCurrency(totalOverdue)}</strong>
+            <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden mt-1">
+              <div className="bg-red-500 h-full w-[65%]"></div>
+            </div>
+          </div>
+
+          {/* Hoàn / Điều chỉnh */}
+          <div className="flex flex-col gap-1 bg-[#F8FAFC] border border-slate-200 p-3 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Hoàn / Điều chỉnh</span>
+              <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+            </div>
+            <strong className="text-sm font-black text-slate-700">{formatCurrency(totalAdjusted)}</strong>
+            <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden mt-1">
+              <div className="bg-slate-400 h-full w-[15%]"></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 4. FINANCE TOOLBAR (Compact Professional Filter Bar) */}
+      <div className="bg-white border border-[#DCE5F0] rounded-lg p-3 shadow-2xs flex flex-col gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 w-full">
+          
+          {/* Keyword Search */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Từ khóa</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Đối tác hoặc mã GD..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-semibold rounded-md pl-8 pr-2 py-1.5 outline-none transition-all"
+              />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+          </div>
+
+          {/* Time Filter Dropdown */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thời gian</label>
+            <select
+              value={selectedTimeFilter}
+              onChange={(e) => setSelectedTimeFilter(e.target.value)}
+              className="w-full bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-bold rounded-md px-2.5 py-1.5 outline-none cursor-pointer"
+            >
+              {['Tất cả', 'Hôm nay', '7 ngày', 'Tháng này', 'Tháng trước', 'Tùy chọn'].map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Method */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phương thức</label>
+            <select
               value={selectedMethod}
               onChange={(e) => setSelectedMethod(e.target.value)}
-              className="py-1 text-xs"
-            />
+              className="w-full bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-bold rounded-md px-2.5 py-1.5 outline-none cursor-pointer"
+            >
+              {['Tất cả', 'Chuyển khoản', 'Ví điện tử', 'Tiền mặt'].map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex flex-col gap-1 w-full">
-            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Loại GD</label>
-            <Select
-              options={['Tất cả', 'Đăng ký mới', 'Gia hạn', 'Nâng cấp gói']}
+          {/* Type */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Loại GD</label>
+            <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="py-1 text-xs"
-            />
+              className="w-full bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-bold rounded-md px-2.5 py-1.5 outline-none cursor-pointer"
+            >
+              {['Tất cả', 'Đăng ký mới', 'Gia hạn', 'Nâng cấp gói'].map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex flex-col gap-1 w-full">
-            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Trạng thái</label>
-            <Select
-              options={['Tất cả', 'Hoàn tất', 'Đang chờ', 'Đang chờ quá 48h', 'Đã hủy']}
+          {/* Status */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Trạng thái</label>
+            <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="py-1 text-xs"
-            />
+              className="w-full bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-bold rounded-md px-2.5 py-1.5 outline-none cursor-pointer"
+            >
+              {['Tất cả', 'Hoàn tất', 'Đang chờ', 'Đang chờ quá 48h', 'Đã hủy'].map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
+
         </div>
-      </FilterBar>
 
-      {/* Transaction Table */}
-      <DataTable
-        columns={columns}
-        rows={filteredTransactions}
-        emptyState={
-          <div className="text-sm font-semibold text-muted py-6">
-            Không tìm thấy giao dịch nào phù hợp.
+        {/* Custom Date Range Pickers (Only visible when selectedTimeFilter === 'Tùy chọn') */}
+        {selectedTimeFilter === 'Tùy chọn' && (
+          <div className="flex items-center gap-3 pt-2 border-t border-slate-100 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Từ ngày:</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-semibold rounded-md px-2.5 py-1 outline-none cursor-pointer"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Đến ngày:</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-semibold rounded-md px-2.5 py-1 outline-none cursor-pointer"
+              />
+            </div>
           </div>
-        }
-      />
+        )}
 
-      {/* Confirm Collect Dialog */}
+        {/* Clear filter button (Only visible when filter active) */}
+        {isFilterActive && (
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setSelectedTimeFilter('Tất cả');
+                setStartDate('');
+                setEndDate('');
+                setSelectedMethod('Tất cả');
+                setSelectedType('Tất cả');
+                setSelectedStatus('Tất cả');
+              }}
+              className="text-[11px] font-bold text-slate-500 hover:text-red-600 bg-transparent border-0 cursor-pointer p-0"
+            >
+              Xóa bộ lọc
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 5. TRANSACTION TABLE (Enterprise Sharp Table with Status Dots & Highlights) */}
+      <div className="bg-white border border-[#DCE5F0] rounded-lg shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-4">Mã giao dịch</th>
+                <th className="py-3 px-4">Thời gian</th>
+                <th className="py-3 px-4">Tên đối tác</th>
+                <th className="py-3 px-4">Nội dung</th>
+                <th className="py-3 px-4">Phương thức</th>
+                <th className="py-3 px-4">Loại GD</th>
+                <th className="py-3 px-4 text-right">Số tiền</th>
+                <th className="py-3 px-4">Trạng thái</th>
+                <th className="py-3 px-4 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#DCE5F0]">
+              {filteredTransactions.length > 0 ? (
+                filteredTransactions.map((row) => {
+                  const isPending48h = row.status === 'Đang chờ quá 48h';
+                  const isPending = row.status === 'Đang chờ';
+                  const isCompleted = row.status === 'Hoàn tất';
+
+                  // Row background styling
+                  let rowBgClass = 'bg-white hover:bg-slate-50/80';
+                  if (isPending48h) {
+                    rowBgClass = 'bg-red-50/40 hover:bg-red-50/70';
+                  } else if (isPending) {
+                    rowBgClass = 'bg-amber-50/30 hover:bg-amber-50/60';
+                  }
+
+                  return (
+                    <tr
+                      key={row.code}
+                      className={`${rowBgClass} transition-colors duration-150 font-medium text-slate-800`}
+                    >
+                      {/* 1. Mã giao dịch */}
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                        {row.code}
+                      </td>
+
+                      {/* 2. Thời gian */}
+                      <td className="py-3 px-4 text-slate-500 font-medium">
+                        {row.time}
+                      </td>
+
+                      {/* 3. Tên đối tác */}
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/admin/partners/${row.partnerCode}`)}
+                          className="font-bold text-[#2563EB] hover:underline transition-colors text-left cursor-pointer border-0 bg-transparent p-0"
+                        >
+                          {row.partnerName}
+                        </button>
+                      </td>
+
+                      {/* 4. Nội dung */}
+                      <td className="py-3 px-4 text-slate-700">
+                        {row.content}
+                      </td>
+
+                      {/* 5. Phương thức */}
+                      <td className="py-3 px-4 text-slate-600 font-semibold">
+                        {row.method}
+                      </td>
+
+                      {/* 6. Loại giao dịch */}
+                      <td className="py-3 px-4">
+                        <span className="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                          {row.type}
+                        </span>
+                      </td>
+
+                      {/* 7. Số tiền */}
+                      <td className="py-3 px-4 text-right font-mono font-bold">
+                        <span className={row.amount < 0 ? 'text-red-600' : 'text-slate-900'}>
+                          {formatCurrency(row.amount)}
+                        </span>
+                      </td>
+
+                      {/* 8. Trạng thái (Dot + Label) */}
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              isCompleted
+                                ? 'bg-emerald-500'
+                                : isPending48h
+                                ? 'bg-red-500 animate-pulse'
+                                : isPending
+                                ? 'bg-amber-500'
+                                : 'bg-slate-400'
+                            }`}
+                          ></span>
+                          <span
+                            className={
+                              isCompleted
+                                ? 'text-emerald-700'
+                                : isPending48h
+                                ? 'text-red-700'
+                                : isPending
+                                ? 'text-amber-700'
+                                : 'text-slate-600'
+                            }
+                          >
+                            {row.status}
+                          </span>
+                        </span>
+                      </td>
+
+                      {/* 9. Thao tác (Clean Action Hierarchy) */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleViewInvoice(row)}
+                            className="text-[#2563EB] hover:underline font-bold text-xs bg-transparent border-0 cursor-pointer p-0"
+                          >
+                            Xem hóa đơn
+                          </button>
+
+                          {(isPending || isPending48h) && (
+                            <button
+                              type="button"
+                              onClick={() => handleCollectClick(row)}
+                              className="px-2.5 py-1 text-xs font-bold bg-[#2563EB] hover:bg-blue-700 text-white rounded transition-colors cursor-pointer border-0 shadow-2xs"
+                            >
+                              Xác nhận đã thu tiền
+                            </button>
+                          )}
+
+                          {isCompleted && row.amount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRefundClick(row)}
+                              className="px-2 py-1 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition-colors cursor-pointer"
+                            >
+                              Hoàn tiền
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-xs text-slate-400 font-semibold">
+                    Không tìm thấy giao dịch nào phù hợp với bộ lọc.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* CONFIRM COLLECT DIALOG */}
       <ConfirmDialog
         isOpen={confirmCollectOpen}
         onClose={() => setConfirmCollectOpen(false)}
@@ -459,7 +671,7 @@ export default function AdminTransactions() {
         message={`Bạn có chắc chắn xác nhận đã thu đủ số tiền cho giao dịch ${activeTxn?.code} từ đối tác ${activeTxn?.partnerName}?`}
       />
 
-      {/* Collect Success Modal */}
+      {/* COLLECT SUCCESS MODAL */}
       <Modal
         isOpen={collectSuccessOpen}
         onClose={() => {
@@ -470,35 +682,34 @@ export default function AdminTransactions() {
         size="sm"
       >
         <div className="flex flex-col gap-4 text-center py-2 text-slate-800">
-          <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex items-center justify-center mx-auto shadow-inner">
+          <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto shadow-2xs">
             <CheckCircle size={24} />
           </div>
           <div>
-            <h4 className="text-sm font-extrabold text-slate-900 leading-snug">Xác nhận giao dịch thành công</h4>
-            <p className="text-xs text-slate-600 font-bold mt-3 leading-relaxed">
-              Thanh toán thành công. Gói dịch vụ của bạn đã được gia hạn đến ngày 15/08/2026
+            <h4 className="text-sm font-black text-slate-900 leading-snug">Xác nhận giao dịch thành công</h4>
+            <p className="text-xs text-slate-600 font-bold mt-2 leading-relaxed">
+              Thanh toán thành công. Gói dịch vụ của bạn đã được gia hạn đến ngày 15/08/2026.
             </p>
-            <p className="text-[10px] text-slate-400 font-semibold mt-3 bg-slate-50 p-2.5 border border-slate-100 rounded-xl">
+            <p className="text-[10px] text-slate-500 font-semibold mt-3 bg-slate-50 p-2.5 border border-slate-200 rounded-md">
               Đã gửi thông báo Zalo/Email cho chủ tiệm.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-2 pt-2">
-            <Button
-              variant="primary"
-              size="sm"
+            <button
+              type="button"
               onClick={() => {
                 setCollectSuccessOpen(false);
                 setActiveTxn(null);
               }}
-              className="w-full"
+              className="w-full py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-md border-0 transition-colors cursor-pointer"
             >
               Đóng
-            </Button>
+            </button>
           </div>
         </div>
       </Modal>
 
-      {/* Confirm Refund Dialog */}
+      {/* CONFIRM REFUND DIALOG */}
       <ConfirmDialog
         isOpen={confirmRefundOpen}
         onClose={() => setConfirmRefundOpen(false)}
@@ -508,7 +719,7 @@ export default function AdminTransactions() {
         message={`Bạn có chắc chắn muốn hoàn tiền cho giao dịch ${txnToRefund?.code} của đối tác ${txnToRefund?.partnerName}? Thao tác này sẽ tạo một giao dịch âm đối chiếu.`}
       />
 
-      {/* View Invoice Modal */}
+      {/* VIEW INVOICE MODAL */}
       <Modal
         isOpen={invoiceModalOpen}
         onClose={() => {
@@ -519,21 +730,21 @@ export default function AdminTransactions() {
         size="md"
       >
         {invoiceTxn && (
-          <div className="flex flex-col gap-4 text-xs text-slate-800">
-            <div className="flex flex-col items-center gap-1 border-b border-slate-100 pb-3 text-center">
-              <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">Hóa đơn thanh toán</h4>
-              <span className="text-[10px] text-slate-400 font-semibold">DUDI Laundry Platform Management</span>
+          <div className="flex flex-col gap-4 text-xs text-slate-800 text-left">
+            <div className="flex flex-col items-center gap-1 border-b border-[#DCE5F0] pb-3 text-center">
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">HÓA ĐƠN THANH TOÁN</h4>
+              <span className="text-[10px] text-slate-400 font-mono">DUDI LAUNDRY PLATFORM MANAGEMENT</span>
             </div>
             
-            <div className="grid grid-cols-2 gap-y-3 py-2 border-b border-slate-100 text-slate-600">
+            <div className="grid grid-cols-2 gap-y-2.5 py-2 border-b border-[#DCE5F0] text-slate-600">
               <span className="font-bold">Mã giao dịch:</span>
-              <strong className="text-slate-800 text-right">{invoiceTxn.code}</strong>
+              <strong className="text-slate-900 text-right font-mono">{invoiceTxn.code}</strong>
               
               <span className="font-bold">Thời gian:</span>
               <span className="text-slate-700 text-right">{invoiceTxn.time}</span>
               
               <span className="font-bold">Đối tác:</span>
-              <strong className="text-slate-800 text-right">{invoiceTxn.partnerName}</strong>
+              <strong className="text-slate-900 text-right">{invoiceTxn.partnerName}</strong>
               
               <span className="font-bold">Nội dung:</span>
               <span className="text-slate-700 text-right">{invoiceTxn.content}</span>
@@ -545,23 +756,29 @@ export default function AdminTransactions() {
               <span className="text-slate-700 text-right">{invoiceTxn.type}</span>
               
               <span className="font-bold">Trạng thái:</span>
-              <span className="text-right">
-                <StatusBadge label={invoiceTxn.status} variant={getStatusVariant(invoiceTxn.status)} />
-              </span>
+              <span className="text-right font-bold text-emerald-600">{invoiceTxn.status}</span>
             </div>
 
             <div className="flex justify-between items-center pt-2 text-sm">
-              <span className="font-extrabold text-slate-800 text-xs uppercase">Tổng thanh toán:</span>
-              <strong className="text-blue-600 font-extrabold text-base">{formatCurrency(invoiceTxn.amount)}</strong>
+              <span className="font-black text-slate-900 text-xs uppercase">TỔNG THANH TOÁN:</span>
+              <strong className="text-[#2563EB] font-black text-base font-mono">{formatCurrency(invoiceTxn.amount)}</strong>
             </div>
 
-            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
-              <Button variant="outline" size="sm" onClick={() => setInvoiceModalOpen(false)}>
+            <div className="flex justify-end gap-2.5 mt-4 pt-3 border-t border-[#DCE5F0]">
+              <button
+                type="button"
+                onClick={() => setInvoiceModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-md transition-colors cursor-pointer border-0"
+              >
                 Đóng
-              </Button>
-              <Button variant="primary" size="sm" onClick={() => toast('Bắt đầu in hóa đơn...', 'info')}>
+              </button>
+              <button
+                type="button"
+                onClick={() => toast('Bắt đầu in hóa đơn...', 'info')}
+                className="px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-md transition-colors cursor-pointer border-0 shadow-2xs"
+              >
                 In hóa đơn
-              </Button>
+              </button>
             </div>
           </div>
         )}

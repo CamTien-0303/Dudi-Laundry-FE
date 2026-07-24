@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus } from 'lucide-react';
+import { Plus, Search, Copy, AlertCircle } from 'lucide-react';
 import {
-  PageHeader,
-  Button,
-  StatusBadge,
-  DataTable,
-  FilterBar,
-  SearchInput,
-  Select,
-  Input,
   ConfirmDialog,
   Modal,
 } from '../../components/common';
@@ -92,14 +84,25 @@ const INITIAL_PARTNERS: Partner[] = [
   }
 ];
 
-const getStatusVariant = (status: string): 'success' | 'warning' | 'error' | 'info' | 'default' => {
+const getStatusBadgeStyle = (status: string) => {
   switch (status) {
-    case 'Đang hoạt động': return 'success';
-    case 'Dùng thử': return 'info';
-    case 'Đã hết hạn': return 'error';
-    case 'Đang tạm dừng': return 'warning';
-    default: return 'default';
+    case 'Đang hoạt động':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'Dùng thử':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'Đã hết hạn':
+      return 'bg-red-50 text-red-700 border-red-200';
+    case 'Đang tạm dừng':
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+    default:
+      return 'bg-slate-50 text-slate-700 border-slate-200';
   }
+};
+
+const isNearExpiry = (expiryDate: string, status: string): boolean => {
+  if (status === 'Đã hết hạn') return true;
+  if (expiryDate === '15/07/2026' || expiryDate === '20/08/2026') return true;
+  return false;
 };
 
 const add30Days = (dateStr: string): string => {
@@ -164,7 +167,18 @@ export default function AdminPartners() {
     setModalOpen(true);
   };
 
-
+  const handleEditClick = (partner: Partner) => {
+    setEditingPartner(partner);
+    setOwnerName(partner.ownerName);
+    setBrandName(partner.brandName);
+    setPhone(partner.phone);
+    setEmail(partner.email);
+    setAddress(partner.address || '');
+    setTier(partner.tier);
+    setTaxId(partner.taxId || '');
+    setFormErrors({});
+    setModalOpen(true);
+  };
 
   const handleTogglePause = (partner: Partner) => {
     setPartners(prev =>
@@ -184,7 +198,7 @@ export default function AdminPartners() {
         if (p.code === partner.code) {
           const newDate = add30Days(p.expiryDate);
           toast(`Đã gia hạn nhanh 30 ngày cho đối tác ${p.brandName} (Hạn mới: ${newDate}).`, 'success');
-          return { ...p, expiryDate: newDate };
+          return { ...p, expiryDate: newDate, status: 'Đang hoạt động' };
         }
         return p;
       })
@@ -275,103 +289,6 @@ export default function AdminPartners() {
     setModalOpen(false);
   };
 
-  const columns = [
-    {
-      key: 'code',
-      header: 'Mã đối tác',
-      render: (row: Partner) => (
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(row.code);
-            toast('Đã sao chép mã đối tác.', 'success');
-          }}
-          className="font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer select-all"
-          title="Bấm để sao chép"
-        >
-          {row.code}
-        </button>
-      )
-    },
-    {
-      key: 'ownerName',
-      header: 'Tên chủ tiệm',
-      render: (row: Partner) => (
-        <button
-          onClick={() => navigate(`/admin/partners/${row.code}`)}
-          className="font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left cursor-pointer"
-        >
-          {row.ownerName}
-        </button>
-      )
-    },
-    {
-      key: 'brandName',
-      header: 'Tên thương hiệu',
-      render: (row: Partner) => (
-        <button
-          onClick={() => navigate(`/admin/partners/${row.code}`)}
-          className="text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left cursor-pointer"
-        >
-          {row.brandName}
-        </button>
-      )
-    },
-    {
-      key: 'tier',
-      header: 'Gói dịch vụ',
-      render: (row: Partner) => <span className="font-medium">{row.tier}</span>
-    },
-    {
-      key: 'expiryDate',
-      header: 'Ngày hết hạn',
-      render: (row: Partner) => <span className="text-muted-foreground">{row.expiryDate}</span>
-    },
-    {
-      key: 'branchesCount',
-      header: 'Số chi nhánh',
-      className: 'text-center',
-      render: (row: Partner) => <span className="font-semibold">{row.branchesCount}</span>
-    },
-    {
-      key: 'status',
-      header: 'Trạng thái',
-      render: (row: Partner) => <StatusBadge label={row.status} variant={getStatusVariant(row.status)} />
-    },
-    {
-      key: 'actions',
-      header: 'Thao tác',
-      className: 'text-right',
-      render: (row: Partner) => (
-        <div className="flex justify-end gap-1.5">
-          <button
-            onClick={() => navigate(`/admin/partners/${row.code}`)}
-            className="px-2 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer"
-          >
-            Sửa
-          </button>
-          <button
-            onClick={() => handleTogglePause(row)}
-            className="px-2 py-1 text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 rounded transition-colors cursor-pointer"
-          >
-            Khóa/Tạm dừng
-          </button>
-          <button
-            onClick={() => handleExtendPartner(row)}
-            className="px-2 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded transition-colors cursor-pointer"
-          >
-            Gia hạn nhanh
-          </button>
-          <button
-            onClick={() => handleDeleteClick(row)}
-            className="px-2 py-1 text-xs font-bold text-red-650 bg-red-50 hover:bg-red-100 rounded transition-colors cursor-pointer"
-          >
-            Xóa
-          </button>
-        </div>
-      )
-    }
-  ];
-
   const filteredPartners = partners.filter(p => {
     const matchesSearch =
       p.ownerName.toLowerCase().includes(search.toLowerCase()) ||
@@ -388,201 +305,455 @@ export default function AdminPartners() {
   const endIdx = filteredPartners.length;
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn">
-      <PageHeader
-        title="Quản lý đối tác"
-        description="Quản lý danh sách đối tác/chủ tiệm trong hệ thống."
-        breadcrumb={[
-          { label: 'Hệ thống', to: '/admin/dashboard' },
-          { label: 'Đối tác' },
-        ]}
-        actions={
-          <Button variant="primary" size="sm" onClick={handleAddClick}>
-            <Plus size={16} />
-            Thêm đối tác
-          </Button>
+    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-4 md:p-8 flex flex-col gap-6 text-left">
+      <style>{`
+        .reveal-hidden {
+          opacity: 1;
         }
-      />
+        @media (prefers-reduced-motion: no-preference) {
+          .reveal-hidden {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+          }
+          .reveal-hidden.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
 
-      {/* Filter section */}
-      <FilterBar onClear={() => { setSearch(''); setSelectedStatus('Tất cả'); }} showClear={!!search || selectedStatus !== 'Tất cả'}>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-64">
-            <SearchInput
+      {/* HEADER BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-4">
+        <div>
+          <span className="text-[10px] font-mono font-bold tracking-widest text-[#2563EB] uppercase">
+            DANH MỤC HỆ THỐNG
+          </span>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+            Quản lý đối tác
+          </h1>
+        </div>
+
+        <button
+          onClick={handleAddClick}
+          className="px-4 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer border-0 shadow-2xs flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+        >
+          <Plus size={16} />
+          <span>Thêm đối tác</span>
+        </button>
+      </div>
+
+      {/* ENTERPRISE COMPACT TOOLBAR */}
+      <div className="bg-white border border-[#DCE5F0] rounded-lg p-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[240px] max-w-md">
+            <input
+              type="text"
               placeholder="Tìm tên chủ tiệm, SĐT, mã đối tác..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onClear={() => setSearch('')}
+              className="w-full bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 text-slate-900 text-xs font-semibold rounded-md pl-9 pr-8 py-2 outline-none transition-all placeholder:text-slate-400"
             />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer p-0 text-xs"
+              >
+                ✕
+              </button>
+            )}
           </div>
-          <div className="w-48">
-            <Select
-              options={['Tất cả', 'Đang hoạt động', 'Đang tạm dừng', 'Đã hết hạn', 'Dùng thử']}
+
+          {/* Filter Status Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 font-bold text-[11px] uppercase tracking-wider">Trạng thái:</span>
+            <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-            />
+              className="bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] text-slate-900 text-xs font-bold rounded-md px-3 py-2 outline-none cursor-pointer"
+            >
+              {['Tất cả', 'Đang hoạt động', 'Đang tạm dừng', 'Đã hết hạn', 'Dùng thử'].map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
         </div>
-      </FilterBar>
 
-      {/* Partners List Table */}
-      <DataTable
-        columns={columns}
-        rows={filteredPartners}
-        emptyState={
-          <div className="text-sm font-semibold text-muted py-4">
-            Không tìm thấy đối tác nào khớp với từ khóa
-          </div>
-        }
-      />
+        {(search || selectedStatus !== 'Tất cả') && (
+          <button
+            type="button"
+            onClick={() => { setSearch(''); setSelectedStatus('Tất cả'); }}
+            className="text-[11px] font-bold text-slate-500 hover:text-red-600 bg-transparent border-0 cursor-pointer p-0 self-end sm:self-auto"
+          >
+            Xóa bộ lọc
+          </button>
+        )}
+      </div>
 
-      {/* Custom Mock Pagination */}
-      <div className="flex items-center justify-between px-4 py-3 bg-surface border border-border/60 rounded-xl mt-2 gap-4 flex-wrap select-none">
-        <span className="text-xs text-muted/90 font-medium">
-          {startIdx}-{endIdx} của {filteredPartners.length} đối tác
-        </span>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast('Tính năng phân trang đang tải.', 'info')}
-            disabled={true}
-            className="p-1.5 min-w-[32px] cursor-not-allowed text-xs"
-          >
-            Trước
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast('Tính năng phân trang đang tải.', 'info')}
-            disabled={true}
-            className="p-1.5 min-w-[32px] cursor-not-allowed text-xs"
-          >
-            Sau
-          </Button>
+      {/* SHARP DENSE DATA TABLE */}
+      <div className="bg-white border border-[#DCE5F0] rounded-lg shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-4">Mã đối tác</th>
+                <th className="py-3 px-4">Tên chủ tiệm</th>
+                <th className="py-3 px-4">Tên thương hiệu</th>
+                <th className="py-3 px-4">Gói dịch vụ</th>
+                <th className="py-3 px-4">Ngày hết hạn</th>
+                <th className="py-3 px-4 text-center">Số chi nhánh</th>
+                <th className="py-3 px-4">Trạng thái</th>
+                <th className="py-3 px-4 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#DCE5F0]">
+              {filteredPartners.length > 0 ? (
+                filteredPartners.map((row) => {
+                  const nearExpiry = isNearExpiry(row.expiryDate, row.status);
+
+                  return (
+                    <tr
+                      key={row.code}
+                      className="hover:bg-[#F8FAFC] transition-colors font-medium text-slate-800"
+                    >
+                      {/* 1. Mã đối tác */}
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(row.code);
+                            toast('Đã sao chép mã đối tác.', 'success');
+                          }}
+                          className="group font-mono font-bold text-[#2563EB] hover:text-blue-800 transition-colors cursor-pointer border-0 bg-transparent p-0 inline-flex items-center gap-1"
+                          title="Bấm để sao chép mã đối tác"
+                        >
+                          <span>{row.code}</span>
+                          <Copy size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
+                        </button>
+                      </td>
+
+                      {/* 2. Tên chủ tiệm */}
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/admin/partners/${row.code}`)}
+                          className="font-bold text-[#2563EB] hover:underline transition-colors text-left cursor-pointer border-0 bg-transparent p-0"
+                        >
+                          {row.ownerName}
+                        </button>
+                      </td>
+
+                      {/* 3. Tên thương hiệu */}
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/admin/partners/${row.code}`)}
+                          className="font-semibold text-slate-900 hover:text-[#2563EB] hover:underline transition-colors text-left cursor-pointer border-0 bg-transparent p-0"
+                        >
+                          {row.brandName}
+                        </button>
+                      </td>
+
+                      {/* 4. Gói dịch vụ */}
+                      <td className="py-3 px-4">
+                        <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          {row.tier}
+                        </span>
+                      </td>
+
+                      {/* 5. Ngày hết hạn */}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-mono text-xs ${nearExpiry ? 'font-bold text-red-600' : 'text-slate-600'}`}>
+                            {row.expiryDate}
+                          </span>
+                          {nearExpiry && (
+                            <span className="px-1.5 py-0.2 bg-red-50 text-red-600 border border-red-200 rounded text-[9px] font-extrabold shrink-0 inline-flex items-center gap-0.5">
+                              <AlertCircle size={10} />
+                              Hạn sắp tới
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 6. Số chi nhánh */}
+                      <td className="py-3 px-4 text-center">
+                        <span className="font-extrabold text-slate-900">{row.branchesCount}</span>
+                      </td>
+
+                      {/* 7. Trạng thái */}
+                      <td className="py-3 px-4">
+                        <span className={`px-2.5 py-1 rounded text-[11px] font-bold border inline-block ${getStatusBadgeStyle(row.status)}`}>
+                          {row.status}
+                        </span>
+                      </td>
+
+                      {/* 8. Thao tác */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(row)}
+                            className="px-2 py-1 text-[11px] font-bold text-[#2563EB] bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded transition-colors cursor-pointer"
+                            title="Sửa thông tin đối tác"
+                          >
+                            Sửa
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePause(row)}
+                            className="px-2 py-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded transition-colors cursor-pointer"
+                            title="Tạm dừng / Khóa hoạt động"
+                          >
+                            Khóa/Tạm dừng
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleExtendPartner(row)}
+                            className="px-2 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors cursor-pointer"
+                            title="Gia hạn 30 ngày"
+                          >
+                            Gia hạn nhanh
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClick(row)}
+                            className="px-2 py-1 text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition-colors cursor-pointer"
+                            title="Xóa đối tác"
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-xs text-slate-400 font-semibold">
+                    Không tìm thấy đối tác nào khớp với điều kiện tìm kiếm.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Add / Edit Partner Modal */}
+      {/* PAGINATION STRIP */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border border-[#DCE5F0] rounded-lg text-xs select-none">
+        <span className="text-slate-500 font-semibold">
+          Hiển thị <strong>{startIdx}-{endIdx}</strong> trong số <strong>{filteredPartners.length}</strong> đối tác
+        </span>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={true}
+            onClick={() => toast('Tính năng phân trang đang tải.', 'info')}
+            className="px-3 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 rounded font-bold text-xs cursor-not-allowed"
+          >
+            Trang trước
+          </button>
+          <button
+            type="button"
+            disabled={true}
+            onClick={() => toast('Tính năng phân trang đang tải.', 'info')}
+            className="px-3 py-1.5 bg-slate-100 text-slate-400 border border-slate-200 rounded font-bold text-xs cursor-not-allowed"
+          >
+            Trang sau
+          </button>
+        </div>
+      </div>
+
+      {/* ADD / EDIT PARTNER MODAL (Redesigned Enterprise Visual) */}
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingPartner ? 'Chỉnh sửa đối tác' : 'Thêm đối tác mới'}
-        size="md"
+        title={editingPartner ? `Chỉnh sửa đối tác: ${editingPartner.code}` : 'Thêm đối tác mới'}
+        className="max-w-[660px]"
       >
-        <form onSubmit={handleSave} className="flex flex-col gap-4">
-          <Input
-            id="ownerName"
-            label="Tên chủ tiệm *"
-            placeholder="Nhập tên chủ tiệm"
-            value={ownerName}
-            onChange={(e) => {
-              setOwnerName(e.target.value);
-              if (formErrors.ownerName) setFormErrors(prev => ({ ...prev, ownerName: '' }));
-            }}
-            error={formErrors.ownerName}
-          />
-
-          <Input
-            id="brandName"
-            label="Tên thương hiệu *"
-            placeholder="Nhập tên thương hiệu"
-            value={brandName}
-            onChange={(e) => {
-              setBrandName(e.target.value);
-              if (formErrors.brandName) setFormErrors(prev => ({ ...prev, brandName: '' }));
-            }}
-            error={formErrors.brandName}
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              id="phone"
-              label="Số điện thoại *"
-              placeholder="Nhập số điện thoại"
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                if (formErrors.phone) setFormErrors(prev => ({ ...prev, phone: '' }));
-                if (formErrors.duplicate) setFormErrors(prev => ({ ...prev, duplicate: '' }));
-              }}
-              error={formErrors.phone}
-            />
-
-            <Input
-              id="email"
-              label="Email *"
-              type="email"
-              placeholder="Nhập email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (formErrors.email) setFormErrors(prev => ({ ...prev, email: '' }));
-                if (formErrors.duplicate) setFormErrors(prev => ({ ...prev, duplicate: '' }));
-              }}
-              error={formErrors.email}
-            />
+        <form onSubmit={handleSave} className="flex flex-col gap-4 text-left">
+          
+          {/* Subtitle */}
+          <div className="-mt-1 mb-2 pb-3 border-b border-[#DCE5F0]">
+            <p className="text-xs text-slate-500 font-medium">
+              {editingPartner 
+                ? 'Cập nhật thông tin tài khoản chủ tiệm trên hệ thống DUDI' 
+                : 'Khởi tạo tài khoản chủ tiệm trên hệ thống DUDI'}
+            </p>
           </div>
 
-          <Input
-            id="address"
-            label="Địa chỉ trụ sở"
-            placeholder="Nhập địa chỉ trụ sở"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-          />
+          {/* 01 · THÔNG TIN ĐỐI TÁC */}
+          <div className="flex flex-col gap-3">
+            <div className="text-[11px] font-mono font-bold tracking-wider text-[#2563EB] uppercase">
+              01 · THÔNG TIN ĐỐI TÁC
+            </div>
+            
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-800">Tên chủ tiệm *</label>
+              <input
+                type="text"
+                placeholder="Nhập tên chủ tiệm"
+                value={ownerName}
+                onChange={(e) => {
+                  setOwnerName(e.target.value);
+                  if (formErrors.ownerName) setFormErrors(prev => ({ ...prev, ownerName: '' }));
+                }}
+                className={`w-full h-[42px] px-3.5 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                  formErrors.ownerName ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                }`}
+              />
+              {formErrors.ownerName && <span className="text-red-500 text-[10px] font-semibold">{formErrors.ownerName}</span>}
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              id="tier"
-              label="Gói dịch vụ"
-              options={['Basic', 'Pro', 'Enterprise']}
-              value={tier}
-              onChange={(e) => setTier(e.target.value)}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-800">Tên thương hiệu *</label>
+              <input
+                type="text"
+                placeholder="Nhập tên thương hiệu"
+                value={brandName}
+                onChange={(e) => {
+                  setBrandName(e.target.value);
+                  if (formErrors.brandName) setFormErrors(prev => ({ ...prev, brandName: '' }));
+                }}
+                className={`w-full h-[42px] px-3.5 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                  formErrors.brandName ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                }`}
+              />
+              {formErrors.brandName && <span className="text-red-500 text-[10px] font-semibold">{formErrors.brandName}</span>}
+            </div>
+          </div>
 
-            <Input
-              id="taxId"
-              label="Mã số thuế (tùy chọn)"
-              placeholder="Nhập mã số thuế"
-              value={taxId}
-              onChange={(e) => setTaxId(e.target.value)}
-            />
+          {/* 02 · THÔNG TIN LIÊN HỆ */}
+          <div className="flex flex-col gap-3 mt-1">
+            <div className="text-[11px] font-mono font-bold tracking-wider text-[#2563EB] uppercase">
+              02 · THÔNG TIN LIÊN HỆ
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-800">Số điện thoại *</label>
+                <input
+                  type="text"
+                  placeholder="Nhập số điện thoại"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (formErrors.phone) setFormErrors(prev => ({ ...prev, phone: '' }));
+                    if (formErrors.duplicate) setFormErrors(prev => ({ ...prev, duplicate: '' }));
+                  }}
+                  className={`w-full h-[42px] px-3.5 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                    formErrors.phone ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                  }`}
+                />
+                {formErrors.phone && <span className="text-red-500 text-[10px] font-semibold">{formErrors.phone}</span>}
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-800">Email *</label>
+                <input
+                  type="email"
+                  placeholder="Nhập email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (formErrors.email) setFormErrors(prev => ({ ...prev, email: '' }));
+                    if (formErrors.duplicate) setFormErrors(prev => ({ ...prev, duplicate: '' }));
+                  }}
+                  className={`w-full h-[42px] px-3.5 bg-[#F8FAFC] border rounded-md text-slate-900 text-xs font-semibold outline-none transition-all ${
+                    formErrors.email ? 'border-red-400 focus:ring-2 focus:ring-red-100' : 'border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100'
+                  }`}
+                />
+                {formErrors.email && <span className="text-red-500 text-[10px] font-semibold">{formErrors.email}</span>}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-slate-800">Địa chỉ trụ sở</label>
+              <input
+                type="text"
+                placeholder="Nhập địa chỉ trụ sở"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full h-[42px] px-3.5 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 rounded-md text-slate-900 text-xs font-semibold outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* 03 · GÓI DỊCH VỤ */}
+          <div className="flex flex-col gap-3 mt-1">
+            <div className="text-[11px] font-mono font-bold tracking-wider text-[#2563EB] uppercase">
+              03 · GÓI DỊCH VỤ
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-800">Gói dịch vụ</label>
+                <select
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value)}
+                  className="w-full h-[42px] px-3.5 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] rounded-md text-slate-900 text-xs font-semibold outline-none cursor-pointer"
+                >
+                  <option value="Basic">Basic</option>
+                  <option value="Pro">Pro</option>
+                  <option value="Enterprise">Enterprise</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-800">Mã số thuế (tùy chọn)</label>
+                <input
+                  type="text"
+                  placeholder="Nhập mã số thuế"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  className="w-full h-[42px] px-3.5 bg-[#F8FAFC] border border-[#DCE5F0] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 rounded-md text-slate-900 text-xs font-semibold outline-none transition-all"
+                />
+              </div>
+            </div>
           </div>
 
           {formErrors.duplicate && (
-            <div className="text-xs text-red-650 font-bold p-3 bg-red-50 border border-red-100 rounded-xl">
+            <div className="text-xs text-red-700 font-bold p-3 bg-red-50 border border-red-200 rounded-md">
               {formErrors.duplicate}
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2.5 mt-2 pt-4 border-t border-border/40">
-            <Button
-              variant="outline"
-              size="sm"
+          {/* FOOTER */}
+          <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-[#DCE5F0]">
+            <button
+              type="button"
               onClick={() => setModalOpen(false)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-md transition-colors cursor-pointer border-0"
             >
               Hủy
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
+            </button>
+            <button
               type="submit"
+              className="px-5 py-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-md transition-colors cursor-pointer border-0 shadow-2xs"
             >
-              Lưu
-            </Button>
+              {editingPartner ? 'Lưu đối tác' : 'Tạo đối tác'}
+            </button>
           </div>
+
         </form>
       </Modal>
 
-      {/* Delete Confirmation Dialog */}
+      {/* DELETE CONFIRMATION DIALOG */}
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
         title="Xác nhận xóa đối tác"
         variant="danger"
-        message="Bạn có chắc chắn muốn xóa đối tác này? Toàn bộ dữ liệu chi nhánh và đơn hàng sẽ bị lưu trữ hoặc mất vĩnh viễn"
+        message="Bạn có chắc chắn muốn xóa đối tác này? Toàn bộ dữ liệu chi nhánh và đơn hàng sẽ bị lưu trữ hoặc mất vĩnh viễn."
       />
     </div>
   );
