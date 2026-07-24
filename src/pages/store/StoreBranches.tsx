@@ -343,7 +343,7 @@ export default function StoreBranches() {
   const quotaPercent = Math.min(100, Math.round((quotaUsed / quotaMax) * 100));
 
   return (
-    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-4 md:p-8 flex flex-col gap-5 text-left">
+    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-3 sm:p-5 md:p-8 flex flex-col gap-5 text-left overflow-x-hidden">
       <style>{`
         .reveal-hidden {
           opacity: 1;
@@ -361,25 +361,26 @@ export default function StoreBranches() {
         }
       `}</style>
 
-      {/* 1. COMPACT HEADER & QUOTA INDICATOR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-3">
+      {/* 1. RESPONSIVE HEADER & QUOTA INDICATOR */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-3">
         <div>
           <span className="text-[10px] font-mono font-bold tracking-widest text-[#2563EB] uppercase">
             BRANCH MANAGEMENT
           </span>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
             Quản lý chi nhánh
           </h1>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
+        {/* Action Controls: Quota & Add button wrap cleanly on small screens */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto">
           {/* COMPACT QUOTA INDICATOR */}
           <div className="flex flex-col gap-1 bg-white border border-[#DCE5F0] px-3.5 py-1.5 rounded-lg shadow-2xs">
             <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-700 gap-2">
               <span>QUOTA CHI NHÁNH</span>
               <span className="text-[#2563EB]">{quotaUsed} / {quotaMax} · Gói Pro</span>
             </div>
-            <div className="w-36 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full sm:w-36 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-[#2563EB] rounded-full transition-all duration-300"
                 style={{ width: `${quotaPercent}%` }}
@@ -391,7 +392,7 @@ export default function StoreBranches() {
             variant="primary"
             size="sm"
             onClick={handleOpenAddForm}
-            className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg shadow-2xs border-0 transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg shadow-2xs border-0 transition-colors cursor-pointer w-full sm:w-auto"
             disabled={quotaUsed >= quotaMax}
           >
             <Plus size={16} />
@@ -400,27 +401,26 @@ export default function StoreBranches() {
         </div>
       </div>
 
-      {/* 2. BRANCH CARDS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
+      {/* 2. RESPONSIVE BRANCH CARDS GRID: 1 col (<768px), 2 cols (768-1279px), 3 cols (>=1280px) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
         {branches.map((branch) => {
           const isMenuOpen = openMenuBranchId === branch.id;
           return (
             <div
               key={branch.id}
-              className={`rounded-xl shadow-2xs hover:shadow-xs transition-all overflow-hidden flex flex-col justify-between gap-3.5 p-4.5 relative text-xs ${getCardStyle(branch)}`}
+              className={`rounded-xl shadow-2xs hover:shadow-xs transition-all overflow-hidden flex flex-col justify-between gap-3.5 p-4 sm:p-4.5 relative text-xs ${getCardStyle(branch)}`}
             >
               {/* Card Header: Title & Badges */}
               <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <div className="relative shrink-0">
                     <img
                       src={branch.image}
                       alt={branch.name}
                       onError={(e) => {
-                        // Fallback image if broken
                         (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=600&auto=format&fit=crop&q=80';
                       }}
-                      className="w-11 h-11 rounded-lg object-cover border border-[#DCE5F0]"
+                      className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg object-cover border border-[#DCE5F0]"
                     />
                     {branch.isMain && (
                       <span className="absolute -bottom-1 -right-1 bg-[#2563EB] text-white p-0.5 rounded-full" title="Chi nhánh chính">
@@ -430,7 +430,7 @@ export default function StoreBranches() {
                   </div>
 
                   <div className="flex flex-col min-w-0">
-                    <h3 className="text-sm font-black text-slate-900 truncate tracking-tight">{branch.name}</h3>
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug break-words tracking-tight">{branch.name}</h3>
                     <span className="text-[10px] font-mono font-bold text-slate-400">ID: {branch.id}</span>
                   </div>
                 </div>
@@ -458,13 +458,13 @@ export default function StoreBranches() {
               <div className="flex flex-col gap-2 border-b border-slate-100 pb-3">
                 <div className="flex items-start gap-2 text-slate-700">
                   <MapPin size={14} className="text-[#2563EB] shrink-0 mt-0.5" />
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-semibold text-slate-800 leading-snug">{branch.address}</span>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="font-semibold text-slate-800 leading-snug break-words">{branch.address}</span>
                     <a
                       href={`https://www.google.com/maps/search/?api=1&query=${branch.lat},${branch.lng}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[#2563EB] hover:underline font-bold flex items-center gap-0.5 text-[10px]"
+                      className="text-[#2563EB] hover:underline font-bold flex items-center gap-0.5 text-[10px] w-fit"
                     >
                       <span>Mở Google Maps</span> <ExternalLink size={10} />
                     </a>
@@ -473,12 +473,12 @@ export default function StoreBranches() {
 
                 <div className="flex items-center gap-2 text-slate-700">
                   <Phone size={14} className="text-slate-400 shrink-0" />
-                  <span className="font-semibold">Hotline: <strong className="text-slate-900">{branch.hotline || 'Chưa cài đặt'}</strong></span>
+                  <span className="font-semibold text-[11px] sm:text-xs">Hotline: <strong className="text-slate-900">{branch.hotline || 'Chưa cài đặt'}</strong></span>
                 </div>
               </div>
 
-              {/* Staff & Hours */}
-              <div className="grid grid-cols-2 gap-2 text-slate-700 border-b border-slate-100 pb-3">
+              {/* Staff & Hours: 1 column on mobile (<640px), 2 columns on tablet/desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700 border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-1.5">
                   <Users size={14} className="text-slate-400 shrink-0" />
                   <div className="flex flex-col">
@@ -497,7 +497,7 @@ export default function StoreBranches() {
               </div>
 
               {/* Bottom Actions Row: Status Toggle + Primary Edit + 3-dots Menu */}
-              <div className="flex items-center justify-between pt-1 gap-2">
+              <div className="flex flex-wrap items-center justify-between pt-1 gap-2">
                 
                 {/* Toggle Status Switch */}
                 <div className="flex items-center gap-1.5">
@@ -513,7 +513,6 @@ export default function StoreBranches() {
                 {/* Primary Edit & 3-dots popover dropdown */}
                 <div className="flex items-center gap-1.5 relative">
                   
-                  {/* Primary Action: Edit */}
                   <button
                     type="button"
                     onClick={() => handleOpenEditForm(branch)}
@@ -523,7 +522,6 @@ export default function StoreBranches() {
                     <span>Chỉnh sửa</span>
                   </button>
 
-                  {/* 3-Dots Action Menu Trigger */}
                   <button
                     type="button"
                     onClick={() => setOpenMenuBranchId(isMenuOpen ? null : branch.id)}
@@ -533,7 +531,6 @@ export default function StoreBranches() {
                     <MoreVertical size={14} />
                   </button>
 
-                  {/* Popover Menu: Copy & Delete */}
                   {isMenuOpen && (
                     <div
                       ref={menuRef}
@@ -597,7 +594,7 @@ export default function StoreBranches() {
             placeholder="Ví dụ: 456 Nguyễn Thị Thập, Quận 7, TP. HCM"
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               id="branchLat"
               label="Vĩ độ Lat *"
@@ -623,7 +620,7 @@ export default function StoreBranches() {
             <span className="text-[10px] text-red-500 font-bold">⚠️ {formErrors.coords}</span>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               id="branchHotline"
               label="Hotline chi nhánh"
@@ -640,7 +637,7 @@ export default function StoreBranches() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               id="branchOpen"
               label="Giờ mở cửa"
