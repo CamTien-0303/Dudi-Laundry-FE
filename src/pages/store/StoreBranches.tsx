@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   MapPin,
   Phone,
@@ -8,12 +8,13 @@ import {
   Trash2,
   Copy,
   Plus,
-  Info,
   ExternalLink,
-  Cpu
+  Cpu,
+  MoreVertical,
+  Building2,
+  CheckCircle2
 } from 'lucide-react';
 import {
-  PageHeader,
   Button,
   StatusBadge,
   Select,
@@ -37,6 +38,7 @@ interface Branch {
   image: string;
   status: 'Đang hoạt động' | 'Tạm nghỉ';
   isAuto: boolean;
+  isMain?: boolean;
   unfinishedOrders: number;
 }
 
@@ -52,9 +54,10 @@ const INITIAL_BRANCHES: Branch[] = [
     openTime: '07:00',
     closeTime: '22:00',
     daysOfWeek: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'],
-    image: 'https://images.unsplash.com/photo-1545180856-f682855cf525?w=400&auto=format&fit=crop&q=60',
+    image: 'https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=600&auto=format&fit=crop&q=80',
     status: 'Đang hoạt động',
     isAuto: false,
+    isMain: true,
     unfinishedOrders: 0
   },
   {
@@ -68,10 +71,11 @@ const INITIAL_BRANCHES: Branch[] = [
     openTime: '08:00',
     closeTime: '21:00',
     daysOfWeek: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'],
-    image: 'https://images.unsplash.com/photo-1521568865911-47000e48f703?w=400&auto=format&fit=crop&q=60',
+    image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=600&auto=format&fit=crop&q=80',
     status: 'Đang hoạt động',
     isAuto: false,
-    unfinishedOrders: 3 // Has 3 unfinished orders -> delete restricted!
+    isMain: false,
+    unfinishedOrders: 3
   },
   {
     id: 'BR-003',
@@ -84,9 +88,10 @@ const INITIAL_BRANCHES: Branch[] = [
     openTime: '00:00',
     closeTime: '23:59',
     daysOfWeek: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'],
-    image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=400&auto=format&fit=crop&q=60',
+    image: 'https://images.unsplash.com/photo-1521568865911-47000e48f703?w=600&auto=format&fit=crop&q=80',
     status: 'Tạm nghỉ',
     isAuto: true,
+    isMain: false,
     unfinishedOrders: 0
   }
 ];
@@ -98,7 +103,11 @@ export default function StoreBranches() {
   
   // Quota config simulation
   const [quotaUsed, setQuotaUsed] = useState(2);
-  const [quotaMax, setQuotaMax] = useState(3);
+  const [quotaMax] = useState(3);
+
+  // Dropdown menu state
+  const [openMenuBranchId, setOpenMenuBranchId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Modals state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -131,10 +140,21 @@ export default function StoreBranches() {
   const [copySourceBranchId, setCopySourceBranchId] = useState('');
   const [copyTargetBranchId, setCopyTargetBranchId] = useState('');
 
+  // Close 3-dots popup on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuBranchId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // 1. OPEN FORM MODAL
   const handleOpenAddForm = () => {
     if (quotaUsed >= quotaMax) {
-      toast('Bạn đã đạt giới hạn tối đa số chi nhánh của gói dịch vụ hiện tại.', 'error');
+      toast('Bạn đã đạt giới hạn tối đa số chi nhánh của gói Pro hiện tại.', 'error');
       return;
     }
     setFormType('add');
@@ -148,7 +168,7 @@ export default function StoreBranches() {
     setCloseTime('22:00');
     setDaysOfWeek(['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']);
     setIsAuto(false);
-    setBranchImage('https://images.unsplash.com/photo-1521568865911-47000e48f703?w=400&auto=format&fit=crop&q=60');
+    setBranchImage('https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=600&auto=format&fit=crop&q=80');
     setFormErrors({});
     setIsFormModalOpen(true);
   };
@@ -169,6 +189,7 @@ export default function StoreBranches() {
     setBranchImage(branch.image);
     setFormErrors({});
     setIsFormModalOpen(true);
+    setOpenMenuBranchId(null);
   };
 
   // 2. FORM SUBMIT AND VALIDATION
@@ -181,7 +202,7 @@ export default function StoreBranches() {
       const parsedLat = parseFloat(lat);
       const parsedLng = parseFloat(lng);
       if (isNaN(parsedLat) || isNaN(parsedLng)) {
-        errors.coords = 'Không thể xác định vị trí. Vui lòng kiểm tra lại hoặc chọn thủ công trên bản đồ.';
+        errors.coords = 'Không thể xác định vị trí. Vui lòng kiểm tra lại.';
       }
     }
 
@@ -203,9 +224,10 @@ export default function StoreBranches() {
         openTime,
         closeTime,
         daysOfWeek,
-        image: branchImage || 'https://images.unsplash.com/photo-1521568865911-47000e48f703?w=400&auto=format&fit=crop&q=60',
+        image: branchImage || 'https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=600&auto=format&fit=crop&q=80',
         status: 'Đang hoạt động',
         isAuto,
+        isMain: false,
         unfinishedOrders: 0
       };
       setBranches(prev => [...prev, newBranch]);
@@ -243,7 +265,6 @@ export default function StoreBranches() {
       setTargetStatusBranch(branch);
       setStatusConfirmOpen(true);
     } else {
-      // Toggle back directly without confirm
       setBranches(prev =>
         prev.map(b => (b.id === branch.id ? { ...b, status: 'Đang hoạt động' } : b))
       );
@@ -262,6 +283,7 @@ export default function StoreBranches() {
 
   // 4. DELETE BRANCH
   const handleDeleteClick = (branch: Branch) => {
+    setOpenMenuBranchId(null);
     if (branch.unfinishedOrders > 0) {
       toast(`Không thể xóa chi nhánh này vì vẫn còn ${branch.unfinishedOrders} đơn hàng chưa hoàn thành.`, 'error');
       return;
@@ -280,8 +302,8 @@ export default function StoreBranches() {
 
   // 5. COPY CONFIG MOCK
   const handleOpenCopyModal = (targetBranch: Branch) => {
+    setOpenMenuBranchId(null);
     setCopyTargetBranchId(targetBranch.id);
-    // Find first other branch as default source
     const other = branches.find(b => b.id !== targetBranch.id);
     setCopySourceBranchId(other ? other.id : '');
     setCopyModalOpen(true);
@@ -298,197 +320,262 @@ export default function StoreBranches() {
     toast(`Đã sao chép cấu hình bảng giá và cài đặt từ "${source.name}" sang "${target.name}".`, 'success');
   };
 
-  // Days toggle handler
   const handleDayToggle = (day: string) => {
     setDaysOfWeek(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     );
   };
 
+  // Helper for card styling
+  const getCardStyle = (branch: Branch) => {
+    if (branch.isMain) {
+      return 'border-l-4 border-l-[#2563EB] bg-[#EFF6FF]/30 border-t border-r border-b border-[#DCE5F0]';
+    }
+    if (branch.isAuto) {
+      return 'border-l-4 border-l-amber-500 bg-[#FFFBEB]/30 border-t border-r border-b border-[#DCE5F0]';
+    }
+    if (branch.status === 'Tạm nghỉ') {
+      return 'border-l-4 border-l-slate-400 bg-slate-50/70 border-t border-r border-b border-[#DCE5F0]';
+    }
+    return 'border-l-4 border-l-slate-300 bg-white border-t border-r border-b border-[#DCE5F0]';
+  };
+
+  const quotaPercent = Math.min(100, Math.round((quotaUsed / quotaMax) * 100));
+
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800">
-      
-      {/* Header controls block */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <PageHeader
-          title="Quản lý chi nhánh"
-          description="Quản lý danh sách và thiết lập địa điểm cửa hàng."
-        />
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          
-          {/* Quota indicator tag */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-150 rounded-xl text-xs font-bold text-blue-700">
-            <Info size={14} className="text-blue-500" />
-            <span>Bạn đã sử dụng {quotaUsed}/{quotaMax} chi nhánh (Gói Pro).</span>
+    <div className="w-full bg-[#F4F7FB] min-h-screen text-slate-800 p-4 md:p-8 flex flex-col gap-5 text-left">
+      <style>{`
+        .reveal-hidden {
+          opacity: 1;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .reveal-hidden {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+          }
+          .reveal-hidden.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
+      {/* 1. COMPACT HEADER & QUOTA INDICATOR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DCE5F0] pb-3">
+        <div>
+          <span className="text-[10px] font-mono font-bold tracking-widest text-[#2563EB] uppercase">
+            BRANCH MANAGEMENT
+          </span>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+            Quản lý chi nhánh
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
+          {/* COMPACT QUOTA INDICATOR */}
+          <div className="flex flex-col gap-1 bg-white border border-[#DCE5F0] px-3.5 py-1.5 rounded-lg shadow-2xs">
+            <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-700 gap-2">
+              <span>QUOTA CHI NHÁNH</span>
+              <span className="text-[#2563EB]">{quotaUsed} / {quotaMax} · Gói Pro</span>
+            </div>
+            <div className="w-36 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#2563EB] rounded-full transition-all duration-300"
+                style={{ width: `${quotaPercent}%` }}
+              />
+            </div>
           </div>
 
           <Button
             variant="primary"
             size="sm"
             onClick={handleOpenAddForm}
-            className="flex items-center gap-1.5 text-xs font-bold w-full md:w-auto justify-center"
+            className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg shadow-2xs border-0 transition-colors cursor-pointer"
             disabled={quotaUsed >= quotaMax}
           >
-            <Plus size={15} />
-            Thêm chi nhánh mới
+            <Plus size={16} />
+            <span>Thêm chi nhánh mới</span>
           </Button>
         </div>
       </div>
 
-      {/* Simulator bar for quota */}
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4 text-xs font-bold text-slate-600">
-        <span>Trình giả lập cấu hình quota giới hạn chi nhánh của đối tác:</span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { setQuotaMax(3); toast('Đặt hạn mức chi nhánh thành 3.', 'info'); }}
-            className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold ${quotaMax === 3 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-          >
-            Gói Pro (Hạn mức 3)
-          </button>
-          <button
-            onClick={() => { setQuotaMax(2); toast('Đặt hạn mức chi nhánh thành 2. Nút thêm chi nhánh sẽ bị khóa.', 'info'); }}
-            className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold ${quotaMax === 2 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-          >
-            Gói Basic (Hạn mức 2)
-          </button>
-        </div>
-      </div>
+      {/* 2. BRANCH CARDS GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
+        {branches.map((branch) => {
+          const isMenuOpen = openMenuBranchId === branch.id;
+          return (
+            <div
+              key={branch.id}
+              className={`rounded-xl shadow-2xs hover:shadow-xs transition-all overflow-hidden flex flex-col justify-between gap-3.5 p-4.5 relative text-xs ${getCardStyle(branch)}`}
+            >
+              {/* Card Header: Title & Badges */}
+              <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative shrink-0">
+                    <img
+                      src={branch.image}
+                      alt={branch.name}
+                      onError={(e) => {
+                        // Fallback image if broken
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=600&auto=format&fit=crop&q=80';
+                      }}
+                      className="w-11 h-11 rounded-lg object-cover border border-[#DCE5F0]"
+                    />
+                    {branch.isMain && (
+                      <span className="absolute -bottom-1 -right-1 bg-[#2563EB] text-white p-0.5 rounded-full" title="Chi nhánh chính">
+                        <CheckCircle2 size={11} />
+                      </span>
+                    )}
+                  </div>
 
-      {/* Branches List Container */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full min-w-0">
-        {branches.map((branch) => (
-          <div
-            key={branch.id}
-            className={`bg-white border rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col gap-4 p-4 relative ${
-              branch.status === 'Tạm nghỉ' ? 'border-slate-200 bg-slate-50/40 opacity-90' : 'border-slate-200'
-            }`}
-          >
-            {/* Banner or automatic badge */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <img
-                  src={branch.image}
-                  alt={branch.name}
-                  className="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-100"
-                />
-                <div className="flex flex-col min-w-0">
-                  <h4 className="text-sm font-bold text-slate-800 truncate leading-snug">{branch.name}</h4>
-                  <span className="text-[10px] text-slate-400 font-bold">Mã: {branch.id}</span>
+                  <div className="flex flex-col min-w-0">
+                    <h3 className="text-sm font-black text-slate-900 truncate tracking-tight">{branch.name}</h3>
+                    <span className="text-[10px] font-mono font-bold text-slate-400">ID: {branch.id}</span>
+                  </div>
+                </div>
+
+                {/* Status & Type Badges */}
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  {branch.isAuto ? (
+                    <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#FFFBEB] text-amber-800 border border-[#FDE68A] flex items-center gap-0.5">
+                      <Cpu size={10} /> Tự động
+                    </span>
+                  ) : branch.isMain ? (
+                    <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] flex items-center gap-0.5">
+                      <Building2 size={10} /> Chi nhánh chính
+                    </span>
+                  ) : null}
+
+                  <StatusBadge
+                    label={branch.status}
+                    variant={branch.status === 'Đang hoạt động' ? 'success' : 'warning'}
+                  />
                 </div>
               </div>
 
-              {branch.isAuto ? (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 shrink-0">
-                  <Cpu size={10} />
-                  Tự động
-                </span>
-              ) : null}
-            </div>
+              {/* Address & Hotline */}
+              <div className="flex flex-col gap-2 border-b border-slate-100 pb-3">
+                <div className="flex items-start gap-2 text-slate-700">
+                  <MapPin size={14} className="text-[#2563EB] shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-slate-800 leading-snug">{branch.address}</span>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${branch.lat},${branch.lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#2563EB] hover:underline font-bold flex items-center gap-0.5 text-[10px]"
+                    >
+                      <span>Mở Google Maps</span> <ExternalLink size={10} />
+                    </a>
+                  </div>
+                </div>
 
-            {/* Address & link maps */}
-            <div className="flex flex-col gap-1.5 text-xs text-slate-600 border-b border-slate-100 pb-3">
-              <div className="flex gap-2">
-                <MapPin size={14} className="text-slate-400 shrink-0 mt-0.5" />
-                <div className="flex flex-col gap-1">
-                  <span>{branch.address}</span>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${branch.lat},${branch.lng}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-0.5 text-[10px] w-fit"
-                  >
-                    Mở Google Maps <ExternalLink size={10} />
-                  </a>
+                <div className="flex items-center gap-2 text-slate-700">
+                  <Phone size={14} className="text-slate-400 shrink-0" />
+                  <span className="font-semibold">Hotline: <strong className="text-slate-900">{branch.hotline || 'Chưa cài đặt'}</strong></span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 mt-1">
-                <Phone size={14} className="text-slate-400 shrink-0" />
-                <span className="font-semibold text-slate-700">Hotline: {branch.hotline || 'Chưa thiết lập'}</span>
-              </div>
-            </div>
+              {/* Staff & Hours */}
+              <div className="grid grid-cols-2 gap-2 text-slate-700 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-1.5">
+                  <Users size={14} className="text-slate-400 shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase">NHÂN SỰ</span>
+                    <span className="font-bold text-slate-800">{branch.staffCount} nhân viên</span>
+                  </div>
+                </div>
 
-            {/* Staff, hours list */}
-            <div className="grid grid-cols-2 gap-3 text-xs border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-1.5">
-                <Users size={14} className="text-slate-400" />
-                <div>
-                  <div className="text-[9px] text-slate-400 font-bold">Nhân sự</div>
-                  <span className="font-bold text-slate-700">{branch.staffCount} nhân viên</span>
+                <div className="flex items-center gap-1.5">
+                  <Clock size={14} className="text-slate-400 shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase">GIỜ MỞ CỬA</span>
+                    <span className="font-bold text-slate-800">{branch.openTime} - {branch.closeTime}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <Clock size={14} className="text-slate-400" />
-                <div>
-                  <div className="text-[9px] text-slate-400 font-bold">Hoạt động</div>
-                  <span className="font-bold text-slate-700">{branch.openTime} - {branch.closeTime}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action buttons area */}
-            <div className="flex items-center justify-between mt-auto pt-1 gap-2">
-              
-              {/* Toggle switch state */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-500">Trạng thái:</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
+              {/* Bottom Actions Row: Status Toggle + Primary Edit + 3-dots Menu */}
+              <div className="flex items-center justify-between pt-1 gap-2">
+                
+                {/* Toggle Status Switch */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Hoạt động:</span>
                   <input
                     type="checkbox"
                     checked={branch.status === 'Đang hoạt động'}
                     onChange={() => handleToggleStatusClick(branch)}
-                    className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 rounded text-[#2563EB] focus:ring-[#2563EB] cursor-pointer"
                   />
-                  <span className="text-[11px] font-bold ml-1.5">
-                    <StatusBadge
-                      label={branch.status}
-                      variant={branch.status === 'Đang hoạt động' ? 'success' : 'warning'}
-                    />
-                  </span>
-                </label>
+                </div>
+
+                {/* Primary Edit & 3-dots popover dropdown */}
+                <div className="flex items-center gap-1.5 relative">
+                  
+                  {/* Primary Action: Edit */}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEditForm(branch)}
+                    className="px-3 py-1.5 bg-[#EFF6FF] hover:bg-blue-100 text-[#2563EB] border border-[#BFDBFE] rounded-md font-bold text-xs transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Edit2 size={13} />
+                    <span>Chỉnh sửa</span>
+                  </button>
+
+                  {/* 3-Dots Action Menu Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setOpenMenuBranchId(isMenuOpen ? null : branch.id)}
+                    className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-[#DCE5F0] rounded-md transition-colors cursor-pointer"
+                    title="Thao tác khác"
+                  >
+                    <MoreVertical size={14} />
+                  </button>
+
+                  {/* Popover Menu: Copy & Delete */}
+                  {isMenuOpen && (
+                    <div
+                      ref={menuRef}
+                      className="absolute right-0 bottom-full mb-1 w-44 bg-white border border-[#DCE5F0] rounded-lg shadow-lg py-1 z-20 animate-fadeIn"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCopyModal(branch)}
+                        className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer border-0"
+                      >
+                        <Copy size={13} className="text-[#2563EB]" />
+                        <span>Sao chép cấu hình</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick(branch)}
+                        className="w-full px-3 py-2 text-left text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer border-0"
+                      >
+                        <Trash2 size={13} className="text-red-500" />
+                        <span>Xóa chi nhánh</span>
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+
               </div>
 
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => handleOpenCopyModal(branch)}
-                  title="Sao chép cấu hình sang chi nhánh khác"
-                  className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-550 transition-all cursor-pointer"
-                >
-                  <Copy size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleOpenEditForm(branch)}
-                  title="Sửa thông tin chi nhánh"
-                  className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-blue-600 transition-all cursor-pointer"
-                >
-                  <Edit2 size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteClick(branch)}
-                  title="Xóa chi nhánh"
-                  className="p-2 border border-slate-200 rounded-xl hover:bg-red-50 text-red-550 transition-all cursor-pointer"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
             </div>
-
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Modal Add / Edit Branch Form */}
+      {/* 3. MODAL: ADD / EDIT BRANCH */}
       <Modal
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
         title={formType === 'add' ? 'Thêm chi nhánh mới' : 'Sửa thông tin chi nhánh'}
         size="md"
       >
-        <div className="flex flex-col gap-4 text-xs text-slate-800">
+        <div className="flex flex-col gap-3 text-xs text-slate-800 text-left">
           
           <Input
             id="branchName"
@@ -510,8 +597,7 @@ export default function StoreBranches() {
             placeholder="Ví dụ: 456 Nguyễn Thị Thập, Quận 7, TP. HCM"
           />
 
-          {/* Coordinate grid checker fields */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Input
               id="branchLat"
               label="Vĩ độ Lat *"
@@ -520,7 +606,7 @@ export default function StoreBranches() {
                 setLat(e.target.value);
                 if (formErrors.coords) setFormErrors(prev => ({ ...prev, coords: '' }));
               }}
-              placeholder="Ví dụ: 10.7289"
+              placeholder="10.7289"
             />
             <Input
               id="branchLng"
@@ -530,20 +616,20 @@ export default function StoreBranches() {
                 setLng(e.target.value);
                 if (formErrors.coords) setFormErrors(prev => ({ ...prev, coords: '' }));
               }}
-              placeholder="Ví dụ: 106.7201"
+              placeholder="106.7201"
             />
           </div>
           {formErrors.coords && (
-            <span className="text-[10px] text-red-500 font-bold">{formErrors.coords}</span>
+            <span className="text-[10px] text-red-500 font-bold">⚠️ {formErrors.coords}</span>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Input
               id="branchHotline"
               label="Hotline chi nhánh"
               value={hotline}
               onChange={(e) => setHotline(e.target.value)}
-              placeholder="Ví dụ: 0901234567"
+              placeholder="0901234567"
             />
             <Input
               id="branchStaff"
@@ -554,7 +640,7 @@ export default function StoreBranches() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Input
               id="branchOpen"
               label="Giờ mở cửa"
@@ -571,19 +657,18 @@ export default function StoreBranches() {
             />
           </div>
 
-          {/* Workdays checklists */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-bold text-slate-700">Ngày làm việc trong tuần</span>
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-bold text-slate-800">Ngày làm việc trong tuần</span>
+            <div className="flex flex-wrap gap-1.5">
               {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].map((day) => (
                 <button
                   key={day}
                   type="button"
                   onClick={() => handleDayToggle(day)}
-                  className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded border text-[10px] font-bold transition-all cursor-pointer ${
                     daysOfWeek.includes(day)
-                      ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'bg-[#EFF6FF] border-[#BFDBFE] text-[#2563EB]'
+                      : 'bg-white border-[#DCE5F0] text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   {day}
@@ -592,10 +677,9 @@ export default function StoreBranches() {
             </div>
           </div>
 
-          {/* Branch Image URL */}
           <Input
             id="branchImageInput"
-            label="Đường dẫn ảnh đại diện chi nhánh (URL)"
+            label="Đường dẫn ảnh đại diện (URL)"
             value={branchImage}
             onChange={(e) => setBranchImage(e.target.value)}
             placeholder="https://example.com/image.jpg"
@@ -606,32 +690,32 @@ export default function StoreBranches() {
               type="checkbox"
               checked={isAuto}
               onChange={(e) => setIsAuto(e.target.checked)}
-              className="w-4 h-4 rounded text-blue-650 focus:ring-blue-500 cursor-pointer"
+              className="w-4 h-4 rounded text-[#2563EB] focus:ring-[#2563EB] cursor-pointer"
             />
-            <span className="font-bold text-xs text-slate-700">Hệ thống tự động (Không cần nhân sự trực)</span>
+            <span className="font-bold text-xs text-slate-800">Mô hình tự động (Không cần nhân sự trực)</span>
           </label>
 
-          <div className="flex justify-end gap-2.5 mt-4 pt-3 border-t border-slate-100">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
             <Button variant="outline" size="sm" onClick={() => setIsFormModalOpen(false)}>
               Hủy
             </Button>
             <Button variant="primary" size="sm" onClick={handleSaveBranch}>
-              Lưu thay đổi
+              Lưu chi nhánh
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Copy Configuration dialog */}
+      {/* 4. MODAL: COPY CONFIG */}
       <Modal
         isOpen={copyModalOpen}
         onClose={() => setCopyModalOpen(false)}
         title="Sao chép cấu hình chi nhánh"
         size="sm"
       >
-        <div className="flex flex-col gap-4 text-xs text-slate-800">
-          <p className="text-slate-500 leading-relaxed font-semibold">
-            Chọn chi nhánh nguồn để sao chép toàn bộ bảng giá dịch vụ và cài đặt hệ thống sang chi nhánh hiện tại.
+        <div className="flex flex-col gap-3 text-xs text-slate-800 text-left">
+          <p className="text-slate-600 font-semibold leading-relaxed">
+            Chọn chi nhánh nguồn để sao chép toàn bộ bảng giá và thiết lập hệ thống sang chi nhánh hiện tại.
           </p>
 
           <Select
@@ -644,7 +728,7 @@ export default function StoreBranches() {
             onChange={(e) => setCopySourceBranchId(e.target.value.split(' — ')[0])}
           />
 
-          <div className="flex justify-end gap-2.5 mt-4 pt-3 border-t border-slate-100">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
             <Button variant="outline" size="sm" onClick={() => setCopyModalOpen(false)}>
               Hủy
             </Button>
@@ -655,7 +739,7 @@ export default function StoreBranches() {
         </div>
       </Modal>
 
-      {/* Toggle status confirm dialog */}
+      {/* 5. CONFIRM DIALOGS */}
       <ConfirmDialog
         isOpen={statusConfirmOpen}
         onClose={() => setStatusConfirmOpen(false)}
@@ -665,7 +749,6 @@ export default function StoreBranches() {
         message="Chi nhánh này sẽ tạm ẩn khỏi App khách hàng, bạn có chắc chắn?"
       />
 
-      {/* Delete Branch confirm dialog */}
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
