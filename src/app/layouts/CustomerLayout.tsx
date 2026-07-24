@@ -36,6 +36,10 @@ export default function CustomerLayout() {
   };
 
   const handleBack = () => {
+    if (location.pathname.startsWith('/customer/orders/')) {
+      navigate('/customer');
+      return;
+    }
     if (window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {
       navigate(-1);
     } else {

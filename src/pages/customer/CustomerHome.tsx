@@ -9,8 +9,35 @@ import {
   AlertTriangle,
   AlertCircle,
   ArrowRight,
-  User
+  User,
+  X
 } from 'lucide-react';
+
+const SERVICE_EXTRA_DETAILS: Record<string, {
+  suitableFor: string;
+  careNotes: string;
+  tags: string[];
+  tipNote: string;
+}> = {
+  'giat-say': {
+    suitableFor: 'Quần áo mặc hàng ngày, đồ cotton, đồ lanh, khăn tắm, đồng phục, đồ thể thao.',
+    careNotes: 'Sử dụng nước giặt sinh học dịu nhẹ, sấy khô 100% ở nhiệt độ an toàn chống ẩm mốc.',
+    tags: ['Dịu nhẹ cho vải', 'Không phai màu', 'Sấy khô tiệt trùng 100%', 'Xử lý vết bẩn kỹ', 'Tự động phân loại đồ màu'],
+    tipNote: 'Mẹo nhỏ: DUDI hỗ trợ phân loại riêng đồ trắng và đồ màu miễn phí cho tất cả các đơn giặt sấy.'
+  },
+  'giat-hap': {
+    suitableFor: 'Đồ vest, áo khoác dạ, đầm lụa, áo dài, trang phục thiết kế cao cấp, cà vạt, khăn quàng lụa.',
+    careNotes: 'Dùng dung môi khô sinh học nhập khẩu hoàn toàn từ Châu Âu, là hơi phom thủ công tỉ mỉ.',
+    tags: ['Giữ phom chuẩn 100%', 'Bảo vệ sợi vải nhạy cảm', 'Dung môi sinh học an toàn', 'Là hơi thủ công tỉ mỉ', 'Bảo hiểm đồ may mặc'],
+    tipNote: 'Cam kết: Đồ hấp cao cấp được gắn mã vạch theo dõi quy trình giặt khô riêng biệt và kiểm soát nghiêm ngặt.'
+  },
+  'giat-giay-tui': {
+    suitableFor: 'Giày thể thao, giày da, túi vải, túi hàng hiệu, chăn drap, rèm cửa khổ lớn.',
+    careNotes: 'Chăm sóc thủ công chuyên sâu bằng bàn chải lông mềm kết hợp hấp tiệt trùng khử mùi Ozon 99.9%.',
+    tags: ['Tẩy ố đế & làm sạch dây', 'Hấp Ozon khử mùi 99.9%', 'Phục hồi phom & màu sắc', 'Sấy nhiệt thấp an toàn', 'Bảo vệ phụ kiện kim loại'],
+    tipNote: 'Lưu ý: Giày da hoặc túi hàng hiệu cao cấp được chụp ảnh tình trạng trước và sau khi làm sạch.'
+  }
+};
 
 const SERVICES = [
   {
@@ -613,70 +640,178 @@ export default function CustomerHome() {
       )}
 
       {/* --- DETAILS MODALS --- */}
-      {/* 1. Service Detail Modal */}
-      {selectedService && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={() => setSelectedService(null)} />
-          
-          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 shadow-xl max-w-md w-full z-10 flex flex-col gap-4 animate-scaleUp">
-            <div className="flex items-start gap-4 text-left">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${selectedService.bgIcon}`}>
-                {selectedService.icon}
+      {/* 1. Service Detail Modal (Redesigned Wide Modal ~880px) */}
+      {selectedService && (() => {
+        const extra = SERVICE_EXTRA_DETAILS[selectedService.id] || {
+          suitableFor: 'Tất cả các loại trang phục và vật dụng giặt ủi thông dụng.',
+          careNotes: 'Quy trình làm sạch đạt chuẩn vệ sinh an toàn cao nhất.',
+          tags: ['Dịu nhẹ cho vải', 'Không phai màu', 'Phù hợp đồ cao cấp', 'Xử lý kỹ'],
+          tipNote: 'Mẹo nhỏ: Vui lòng kiểm tra kỹ tư trang cá nhân trong túi áo/quần trước khi gửi đồ.'
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={() => setSelectedService(null)} />
+            
+            <div className="relative bg-white border border-slate-200 rounded-[24px] p-6 md:p-8 shadow-xl max-w-[880px] w-full z-10 flex flex-col gap-6 animate-scaleUp max-h-[90vh]">
+              
+              {/* HEADER */}
+              <div className="flex items-start justify-between gap-4 text-left shrink-0 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${selectedService.bgIcon}`}>
+                    {selectedService.icon}
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+                        {selectedService.title}
+                      </h3>
+                      <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${
+                        selectedService.badge === 'Phổ biến' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                        selectedService.badge === 'Premium' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                        'bg-emerald-50 text-emerald-600 border-emerald-100'
+                      }`}>
+                        {selectedService.badge}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                      Thông tin dịch vụ
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedService(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center border-0 cursor-pointer transition-colors"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h3 className="text-lg font-black text-slate-955">{selectedService.title}</h3>
-                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                    selectedService.badge === 'Phổ biến' ? 'bg-blue-50 text-blue-600' :
-                    selectedService.badge === 'Premium' ? 'bg-amber-50 text-amber-600' :
-                    'bg-emerald-50 text-emerald-600'
-                  }`}>
-                    {selectedService.badge}
+
+              {/* SCROLLABLE BODY */}
+              <div className="overflow-y-auto pr-1 flex flex-col gap-5 flex-1 min-h-0 text-left">
+                
+                {/* Block 1: Mô tả dịch vụ */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex flex-col gap-1.5 shrink-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Mô tả dịch vụ
                   </span>
+                  <p className="text-xs md:text-sm text-slate-700 font-medium leading-relaxed">
+                    {selectedService.detailDesc}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-450 font-bold uppercase tracking-wider">Thông tin dịch vụ</p>
-              </div>
-            </div>
 
-            <div className="flex flex-col gap-3.5 bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs">
-              <div className="flex flex-col gap-1 text-left">
-                <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Mô tả chi tiết</span>
-                <span className="text-slate-700 leading-relaxed font-medium">{selectedService.detailDesc}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-4 border-t border-slate-200/60 pt-3 mt-1 text-left">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Đơn giá tham khảo</span>
-                  <span className="font-extrabold text-slate-900">{selectedService.price}</span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-slate-450 font-bold uppercase tracking-wider text-[9px]">Thời gian xử lý</span>
-                  <span className="font-bold text-slate-800">{selectedService.time}</span>
-                </div>
-              </div>
-            </div>
+                {/* Block 2: Grid 2 cột thông tin nhanh */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-2 gap-5 shrink-0 text-xs">
+                  
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Đơn giá tham khảo
+                      </span>
+                      <span className="text-base font-extrabold text-blue-600">
+                        {selectedService.price}
+                      </span>
+                    </div>
 
-            <div className="flex gap-3 justify-end pt-2">
-              <button
-                type="button"
-                onClick={() => setSelectedService(null)}
-                className="px-4 py-2 border border-slate-250 hover:bg-slate-50 text-slate-650 font-bold text-xs rounded-xl transition-all cursor-pointer bg-white"
-              >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedService(null);
-                  navigate(`/customer/pickup?service=${selectedService.id}`);
-                }}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm shadow-blue-500/10 border-0"
-              >
-                Đặt dịch vụ
-              </button>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Phù hợp cho loại đồ
+                      </span>
+                      <span className="font-bold text-slate-800 leading-relaxed">
+                        {extra.suitableFor}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Thời gian xử lý
+                      </span>
+                      <span className="font-bold text-slate-800">
+                        {selectedService.time}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Ghi chú chăm sóc / lưu ý
+                      </span>
+                      <span className="font-bold text-slate-800 leading-relaxed">
+                        {extra.careNotes}
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Block 3: Tag/Chip tiện ích */}
+                <div className="flex flex-col gap-2 shrink-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Đặc điểm & Tiện ích chăm sóc
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {extra.tags.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="px-3.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-xs font-bold"
+                      >
+                        ✓ {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Block 4: Highlight Note Box */}
+                <div className="bg-amber-50 border border-amber-200/70 rounded-xl p-4 text-xs text-amber-800 font-semibold flex items-start gap-2.5 shrink-0">
+                  <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{extra.tipNote}</span>
+                </div>
+
+              </div>
+
+              {/* FOOTER ACTIONS */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100 shrink-0 mt-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedService(null)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border-0"
+                >
+                  Đóng
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedService(null);
+                      navigate('/customer/support');
+                    }}
+                    className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-blue-600 font-bold text-xs rounded-xl transition-all cursor-pointer border border-slate-200"
+                  >
+                    Xem bảng giá
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedService(null);
+                      navigate(`/customer/pickup?service=${selectedService.id}`);
+                    }}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer border-0 flex items-center gap-2"
+                  >
+                    <span>Đặt dịch vụ</span>
+                    <ArrowRight size={15} />
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 2. Branch Detail Modal */}
       {selectedBranch && (

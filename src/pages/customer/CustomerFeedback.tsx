@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
   Star,
-  Camera,
+  X,
   CheckCircle2,
   AlertTriangle,
-  Info,
-  Shirt
+  ArrowRight,
+  Camera,
+  Check
 } from 'lucide-react';
-import { PageHeader } from '../../components/common';
+import { useToast } from '../../components/common';
 
 interface MockOrder {
   id: string;
@@ -16,6 +17,7 @@ interface MockOrder {
   service: string;
   branchName: string;
   branchAddress: string;
+  thumbnail: string;
 }
 
 const mockOrders: Record<string, MockOrder> = {
@@ -24,14 +26,16 @@ const mockOrders: Record<string, MockOrder> = {
     createdAt: '15/07/2026',
     service: '5kg Giặt sấy + 1 đôi giày',
     branchName: 'DUDI Quận 1',
-    branchAddress: '123 Nguyễn Huệ, Quận 1, TP.HCM'
+    branchAddress: '123 Nguyễn Huệ, Quận 1, TP.HCM',
+    thumbnail: '/images/customer/wash-fold.jpg'
   },
   'DUDI-098': {
     id: 'DUDI-098',
     createdAt: '05/07/2026',
-    service: '3kg Giặt sấy',
+    service: 'Giặt sấy 3kg',
     branchName: 'DUDI Quận 1',
-    branchAddress: '123 Nguyễn Huệ, Quận 1, TP.HCM'
+    branchAddress: '123 Nguyễn Huệ, Quận 1, TP.HCM',
+    thumbnail: '/images/customer/pic1.jpg'
   }
 };
 
@@ -42,16 +46,24 @@ const criteriaList = [
   { id: 'staff', label: 'Thái độ nhân viên' }
 ];
 
-const quickTags = [
+const positiveTags = [
   'Giặt rất sạch',
   'Thơm tho',
-  'Giao hàng chậm',
+  'Giao đúng hẹn',
   'Nhân viên nhiệt tình'
+];
+
+const constructiveTags = [
+  'Chưa sạch',
+  'Mùi chưa ổn',
+  'Giao chậm',
+  'Phục vụ chưa tốt'
 ];
 
 export default function CustomerFeedback() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const formattedOrderId = orderId ? orderId.toUpperCase() : '';
   const isCancelled = formattedOrderId === 'DUDI-077';
@@ -59,6 +71,7 @@ export default function CustomerFeedback() {
 
   // Form states
   const [rating, setRating] = useState(0); // 1-5 stars
+  const [hoverRating, setHoverRating] = useState(0);
   const [criteriaRatings, setCriteriaRatings] = useState<Record<string, number>>({
     cleanliness: 5,
     fragrance: 5,
@@ -78,13 +91,39 @@ export default function CustomerFeedback() {
   // Success flow
   const [isSuccess, setIsSuccess] = useState(false);
 
+  // IntersectionObserver for scroll animations
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mediaQuery.matches || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+          } else {
+            entry.target.classList.remove('is-visible');
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    const elements = document.querySelectorAll('.reveal-hidden');
+    elements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [isSuccess]);
+
   const getSentimentText = (stars: number) => {
     switch (stars) {
-      case 1: return 'Rất không hài lòng 😡';
-      case 2: return 'Chưa hài lòng 😕';
-      case 3: return 'Bình thường 😐';
-      case 4: return 'Hài lòng 🙂';
-      case 5: return 'Rất hài lòng 😍';
+      case 1: return 'Tệ';
+      case 2: return 'Chưa tốt';
+      case 3: return 'Bình thường';
+      case 4: return 'Hài lòng';
+      case 5: return 'Rất hài lòng';
       default: return 'Chọn số sao đánh giá';
     }
   };
@@ -147,7 +186,7 @@ export default function CustomerFeedback() {
     if (rating > 0 && rating <= 2) {
       const trimmedComment = comment.trim();
       if (!trimmedComment) {
-        newErrors.comment = 'Vui lòng nhập góp ý chi tiết khi bạn không hài lòng.';
+        newErrors.comment = 'Vui lòng nhập góp ý chi tiết khi bạn chưa hài lòng.';
       } else if (trimmedComment.length < 10) {
         newErrors.comment = `Ý kiến góp ý phải tối thiểu 10 ký tự (hiện có ${trimmedComment.length} ký tự).`;
       }
@@ -155,38 +194,43 @@ export default function CustomerFeedback() {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      toast('Vui lòng kiểm tra lại thông tin đánh giá.', 'error');
+      
+      const ratingElement = document.getElementById('overall-rating-section');
+      if (ratingElement) {
+        ratingElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
     setErrors({});
     setIsSuccess(true);
+    toast('Gửi đánh giá dịch vụ thành công!', 'success');
   };
 
   // 1. Chặn đơn đã hủy DUDI-077
   if (isCancelled) {
     return (
-      <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800 max-w-xl mx-auto px-4 sm:px-0">
-        <PageHeader
-          title="Đánh giá dịch vụ"
-          description="Gửi phản hồi và đóng góp ý kiến về chất lượng giặt ủi."
-        />
-        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-8 text-center text-amber-800 flex flex-col items-center gap-4 mt-4 shadow-sm">
-          <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center border border-amber-200">
-            <AlertTriangle size={26} />
+      <div className="w-full bg-[#F8FAFC] text-slate-800 min-h-[calc(100vh-80px)] flex flex-col py-10 md:py-14">
+        <div className="max-w-[1240px] mx-auto px-4 md:px-6 w-full text-left">
+          <div className="bg-white border border-[#E5E7EB] rounded-[14px] p-8 md:p-12 text-center flex flex-col items-center gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.05)] max-w-lg mx-auto">
+            <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
+              <AlertTriangle size={24} />
+            </div>
+            <div className="flex flex-col gap-1 text-center">
+              <h2 className="text-lg font-bold text-slate-900">Đơn hàng không đủ điều kiện đánh giá</h2>
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                Bạn không thể đánh giá đơn hàng đã bị hủy (DUDI-077). Chỉ những đơn hàng đã hoàn tất sử dụng dịch vụ mới có thể gửi phản hồi.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/customer/orders')}
+              className="mt-2 px-5 py-2.5 bg-[#2563EB] text-white rounded-[8px] text-xs font-bold hover:bg-blue-700 transition-colors cursor-pointer border-0 shadow-2xs"
+            >
+              Quay lại danh sách đơn hàng
+            </button>
           </div>
-          <div className="flex flex-col gap-1">
-            <p className="text-base font-extrabold text-slate-900">Đơn hàng này không đủ điều kiện đánh giá.</p>
-            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-              Bạn không thể đánh giá đơn hàng đã bị hủy. Chỉ những đơn hàng đã hoàn tất sử dụng dịch vụ mới có thể phản hồi.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/customer/orders')}
-            className="mt-2 px-5 py-2.5 bg-white border border-amber-250 text-amber-800 rounded-xl text-xs font-bold hover:bg-amber-100/50 transition-all cursor-pointer"
-          >
-            Quay lại danh sách
-          </button>
         </div>
       </div>
     );
@@ -195,354 +239,391 @@ export default function CustomerFeedback() {
   // 2. Không tìm thấy đơn hàng
   if (!order) {
     return (
-      <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800 max-w-xl mx-auto px-4 sm:px-0">
-        <PageHeader
-          title="Đánh giá dịch vụ"
-          description="Gửi phản hồi và đóng góp ý kiến về chất lượng giặt ủi."
-        />
-        <div className="bg-red-50 border border-red-100 rounded-3xl p-8 text-center text-red-700 flex flex-col items-center gap-4 mt-4 shadow-sm">
-          <div className="w-14 h-14 rounded-full bg-red-100 text-red-650 flex items-center justify-center border border-red-200">
-            <AlertTriangle size={26} />
+      <div className="w-full bg-[#F8FAFC] text-slate-800 min-h-[calc(100vh-80px)] flex flex-col py-10 md:py-14">
+        <div className="max-w-[1240px] mx-auto px-4 md:px-6 w-full text-left">
+          <div className="bg-white border border-[#E5E7EB] rounded-[14px] p-8 md:p-12 text-center flex flex-col items-center gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.05)] max-w-lg mx-auto">
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center border border-red-200">
+              <AlertTriangle size={24} />
+            </div>
+            <div className="flex flex-col gap-1 text-center">
+              <h2 className="text-lg font-bold text-slate-900">Không tìm thấy đơn hàng để đánh giá</h2>
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                Mã đơn hàng bạn yêu cầu không tồn tại trong hệ thống hoặc không trùng khớp với tài khoản của bạn.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/customer/orders')}
+              className="mt-2 px-5 py-2.5 bg-[#2563EB] text-white rounded-[8px] text-xs font-bold hover:bg-blue-700 transition-colors cursor-pointer border-0 shadow-2xs"
+            >
+              Quay lại danh sách đơn hàng
+            </button>
           </div>
-          <div className="flex flex-col gap-1">
-            <p className="text-base font-extrabold text-slate-900">Không tìm thấy đơn hàng để đánh giá.</p>
-            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-              Mã đơn hàng bạn cung cấp không tồn tại trong hệ thống hoặc không khớp với thông tin tài khoản của bạn.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/customer/orders')}
-            className="mt-2 px-5 py-2.5 bg-white border border-red-200 text-red-700 rounded-xl text-xs font-bold hover:bg-red-100/50 transition-all cursor-pointer"
-          >
-            Quay lại danh sách
-          </button>
         </div>
       </div>
     );
   }
 
-  // 3. Success State
+  // SUCCESS STATE (Confirmation View)
   if (isSuccess) {
     return (
-      <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800 max-w-xl mx-auto px-4 sm:px-0">
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md text-center flex flex-col items-center gap-5 mt-4">
-          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center border border-emerald-100 shadow-inner">
-            <CheckCircle2 size={32} className="stroke-[2]" />
-          </div>
-
-          <div className="flex flex-col gap-1.5 px-2">
-            <h2 className="text-lg font-black text-slate-900 leading-snug">Cảm ơn bạn đã đóng góp ý kiến để DUDI Laundry hoàn thiện hơn!</h2>
+      <div className="w-full bg-[#F8FAFC] text-slate-800 min-h-[calc(100vh-80px)] flex flex-col py-10 md:py-14">
+        <div className="max-w-[1240px] mx-auto px-4 md:px-6 w-full text-left">
+          <div className="bg-white border border-[#E5E7EB] rounded-[14px] p-8 md:p-12 text-center flex flex-col items-center gap-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] max-w-xl mx-auto">
             
-            {/* Cộng điểm thưởng */}
-            <p className="text-xs text-emerald-600 font-extrabold mt-1">
-              Bạn vừa nhận được +5 điểm vào Ví vì đã đánh giá dịch vụ
-            </p>
-          </div>
+            <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200 shrink-0">
+              <CheckCircle2 size={32} />
+            </div>
 
-          {/* Hộp cảnh báo đặc biệt nếu đánh giá 1 sao */}
-          {rating === 1 && (
-            <div className="w-full bg-red-50 border border-red-100 rounded-2xl p-4 flex gap-2.5 text-left text-xs text-red-700">
-              <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
-              <span className="font-bold leading-relaxed">
-                Cảnh báo đã được gửi đến quản lý cửa hàng để liên hệ khách hàng xử lý ngay lập tức.
+            <div className="flex flex-col gap-2 text-center">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                Đã gửi đánh giá thành công!
+              </h1>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                Phản hồi của bạn giúp DUDI cải thiện chất lượng dịch vụ tốt hơn.
+              </p>
+              <span className="text-xs text-emerald-600 font-bold mt-1">
+                +5 điểm thưởng đã được cộng vào Ví tích điểm của bạn.
               </span>
             </div>
-          )}
 
-          <div className="w-full text-left text-xs bg-slate-50 border border-slate-100 rounded-xl p-4 flex flex-col gap-1.5">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-450 font-semibold">Đơn hàng:</span>
-              <strong className="text-slate-800 font-bold">{order.id}</strong>
+            {rating === 1 && (
+              <div className="w-full bg-red-50 border border-red-200 p-4 rounded-[8px] flex items-start gap-2.5 text-xs text-red-800 text-left">
+                <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                <span className="font-semibold leading-relaxed">
+                  Đánh giá 1 sao đã được chuyển trực tiếp đến quản lý chi nhánh {order.branchName} để liên hệ xử lý với bạn.
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 pt-4 border-t border-[#E5E7EB] w-full justify-center">
+              <button
+                type="button"
+                onClick={() => navigate('/customer/orders')}
+                className="px-6 py-3 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs rounded-[8px] transition-colors cursor-pointer border-0 shadow-2xs"
+              >
+                Xem lịch sử đơn hàng
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/customer')}
+                className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-[8px] transition-colors cursor-pointer border-0"
+              >
+                Về trang chủ
+              </button>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-450 font-semibold">Đánh giá chung:</span>
-              <strong className="text-slate-800 font-bold">{rating} / 5 Sao ({getSentimentText(rating)})</strong>
-            </div>
+
           </div>
-
-          <button
-            type="button"
-            onClick={() => navigate('/customer/orders')}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-blue-500/10 cursor-pointer border-0"
-          >
-            Quay lại danh sách đơn hàng
-          </button>
         </div>
       </div>
     );
   }
 
+  // Dynamic tags list based on rating
+  const activeTagsList = (rating > 0 && rating <= 3) ? constructiveTags : positiveTags;
+  const tagSectionTitle = (rating > 0 && rating <= 3) ? 'DUDI cần cải thiện điều gì?' : 'Điều gì nổi bật?';
+
+  // MAIN RENDER (Professional 2-Column Desktop ~55/45 Layout, Gap 24px)
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn pb-16 text-slate-800 max-w-2xl mx-auto px-4 sm:px-0">
-      
-      {/* Header */}
-      <div className="border-b border-slate-100 pb-2">
-        <PageHeader
-          title="Đánh giá chất lượng dịch vụ"
-          description={`Đơn hàng ${order.id}`}
-        />
-      </div>
+    <div className="w-full bg-[#F8FAFC] text-slate-800 min-h-[calc(100vh-80px)] flex flex-col py-8 md:py-10">
+      <style>{`
+        .reveal-hidden {
+          opacity: 1;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .reveal-hidden {
+            opacity: 0;
+            transform: translateY(14px);
+            transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          .reveal-hidden.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          .stagger-1 { transition-delay: 80ms; }
+          .stagger-2 { transition-delay: 160ms; }
+          .stagger-3 { transition-delay: 180ms; }
+        }
+      `}</style>
 
-      <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col gap-6">
+      <div className="max-w-[1240px] mx-auto px-4 md:px-6 w-full text-left">
         
-        {/* Tóm tắt đơn hàng */}
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex gap-3 items-start text-xs">
-          <Shirt size={18} className="text-slate-450 shrink-0 mt-0.5" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 w-full">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] text-slate-450 font-bold uppercase">Mã đơn</span>
-              <strong className="text-slate-800 font-extrabold text-sm">{order.id}</strong>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] text-slate-450 font-bold uppercase">Ngày hoàn thành</span>
-              <strong className="text-slate-700 font-semibold">{order.createdAt}</strong>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] text-slate-450 font-bold uppercase">Dịch vụ sử dụng</span>
-              <strong className="text-slate-700 font-semibold">{order.service}</strong>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] text-slate-450 font-bold uppercase">Thực hiện tại</span>
-              <strong className="text-slate-700 font-semibold">{order.branchName}</strong>
-            </div>
-          </div>
+        {/* PAGE TITLE */}
+        <div className="mb-6 flex flex-col">
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            Đánh giá dịch vụ
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-1">
+            Ý kiến phản hồi của bạn giúp DUDI hoàn thiện trải nghiệm dịch vụ.
+          </p>
         </div>
 
-        {/* Phần 1: Chọn sao lớn */}
-        <div className="flex flex-col items-center justify-center gap-2.5 py-4 border-b border-slate-100 text-center">
-          <span className="text-xs font-bold text-slate-700 text-[13px] block">
-            Bạn đánh giá thế nào về đơn hàng này? <span className="text-red-500">*</span>
-          </span>
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((starVal) => {
-              const isFilled = starVal <= rating;
-              return (
-                <button
-                  key={starVal}
-                  type="button"
-                  onClick={() => {
-                    setRating(starVal);
-                    if (errors.rating) setErrors(prev => ({ ...prev, rating: '' }));
-                  }}
-                  className="p-1 cursor-pointer transition-all hover:scale-110 active:scale-95 border-0 bg-transparent select-none"
-                >
-                  <Star
-                    size={36}
-                    className={`stroke-[1.5] transition-colors ${
-                      isFilled ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
-                    }`}
-                  />
-                </button>
-              );
-            })}
-          </div>
-
-          <span className={`text-xs font-black px-3 py-1 bg-slate-50 border border-slate-150 rounded-full ${
-            rating > 0 ? 'text-blue-600' : 'text-slate-400'
-          }`}>
-            {getSentimentText(rating)}
-          </span>
-          {errors.rating && (
-            <span className="text-[10px] text-red-500 font-semibold mt-1">{errors.rating}</span>
-          )}
-        </div>
-
-        {/* Phần 2: Tiêu chí chi tiết */}
-        <div className="flex flex-col gap-3.5 border-b border-slate-100 pb-5">
-          <span className="text-xs font-bold text-slate-700 text-[13px] block">
-            Đánh giá theo từng tiêu chí
-          </span>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {criteriaList.map((criterion) => {
-              const currentScore = criteriaRatings[criterion.id] || 5;
-              return (
-                <div key={criterion.id} className="bg-slate-50/50 border border-slate-100 rounded-xl p-3 flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-700">{criterion.label}</span>
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map((score) => {
-                      const isFilled = score <= currentScore;
-                      return (
-                        <button
-                          key={score}
-                          type="button"
-                          onClick={() => handleCriteriaRating(criterion.id, score)}
-                          className="p-0.5 cursor-pointer bg-transparent border-0 select-none"
-                        >
-                          <Star
-                            size={16}
-                            className={`stroke-[1.5] ${
-                              isFilled ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
-                            }`}
-                          />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Phần 3: Nhãn đánh giá nhanh */}
-        <div className="flex flex-col gap-3 border-b border-slate-100 pb-5">
-          <span className="text-xs font-bold text-slate-700 text-[13px] block">
-            Chọn nhanh nhận xét
-          </span>
-
-          <div className="flex flex-wrap gap-2">
-            {quickTags.map((tag) => {
-              const isSelected = selectedTags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => handleTagToggle(tag)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
-                  }`}
-                  style={{
-                    backgroundColor: isSelected ? '#2563eb' : '#f8fafc',
-                    borderColor: isSelected ? '#2563eb' : '#e2e8f0',
-                    color: isSelected ? '#ffffff' : '#475569'
-                  }}
-                >
-                  {tag}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Phần 4: Ô góp ý chi tiết */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-700 text-[13px] block">
-            Ý kiến đóng góp chi tiết {rating > 0 && rating <= 2 && <span className="text-red-500">*</span>}
-          </label>
-          <textarea
-            rows={4}
-            placeholder={
-              rating > 0 && rating <= 2
-                ? "Vui lòng cho biết lý do bạn chưa hài lòng để chúng tôi xử lý ngay lập tức (tối thiểu 10 ký tự)..."
-                : "Nhập ý kiến đóng góp của bạn để DUDI cải thiện dịch vụ tốt hơn..."
-            }
-            value={comment}
-            onChange={(e) => {
-              setComment(e.target.value);
-              if (errors.comment) setErrors(prev => ({ ...prev, comment: '' }));
-            }}
-            className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-slate-700 text-xs focus:border-blue-500 focus:bg-white outline-none transition-all placeholder-slate-400 resize-none font-semibold text-sm ${
-              errors.comment ? 'border-red-300 bg-red-50/10 focus:border-red-500' : 'border-slate-200'
-            }`}
-          />
-          {errors.comment && (
-            <span className="text-[10px] text-red-500 font-semibold pl-1">{errors.comment}</span>
-          )}
-        </div>
-
-        {/* Phần 5: Tải ảnh thực tế */}
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-bold text-slate-700 text-[13px] block">
-            Hình ảnh thực tế
-          </span>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handlePhotoChange}
-            accept="image/*"
-            className="hidden"
-          />
-
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className={`border border-dashed border-slate-350 rounded-2xl p-5 text-center flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:bg-slate-50/50 hover:border-slate-400 ${
-              photoPreview ? 'bg-blue-50/10 border-blue-400' : 'bg-slate-50/50'
-            }`}
-          >
-            {photoPreview ? (
-              <div className="flex flex-col items-center gap-3 w-full" onClick={(e) => e.stopPropagation()}>
-                {/* Thumbnail Preview */}
-                <div className="relative group w-32 h-32 rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+          {/* CỘT TRÁI (~55% / lg:col-span-7): Order Info, Overall Rating & Criteria Ratings */}
+          <div className="lg:col-span-7 bg-white rounded-[14px] border border-[#E5E7EB] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] flex flex-col gap-6 reveal-hidden">
+            
+            {/* 1. ORDER SUMMARY */}
+            <div className="flex items-start justify-between gap-4 border-b border-[#E5E7EB] pb-5">
+              <div className="flex items-center gap-3.5">
+                <div className="w-[72px] h-[54px] shrink-0 overflow-hidden rounded-[6px] border border-[#E5E7EB] bg-slate-100">
                   <img
-                    src={photoPreview}
-                    alt="Preview"
+                    src={order.thumbnail}
+                    alt={order.service}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                
-                {/* File info and delete button */}
-                <div className="flex flex-col items-center gap-2 max-w-full">
-                  <span className="text-xs font-semibold text-slate-600 truncate max-w-[240px] px-2 block">
-                    {mockPhotoName}
+                <div className="flex flex-col">
+                  <span className="text-xl font-bold text-slate-900 tracking-tight">
+                    {order.id}
                   </span>
-                  
-                  <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-700 mt-0.5">
+                    {order.service}
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium mt-0.5">
+                    {order.branchName} · Hoàn thành {order.createdAt}
+                  </span>
+                </div>
+              </div>
+
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-md shrink-0">
+                ✓ Đã hoàn thành
+              </span>
+            </div>
+
+            {/* 2. OVERALL RATING SECTION */}
+            <div id="overall-rating-section" className="flex flex-col border-b border-[#E5E7EB] pb-6">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                ĐÁNH GIÁ TRẢI NGHIỆM CHUNG <span className="text-red-500">*</span>
+              </span>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((starVal) => {
+                    const activeScore = hoverRating || rating;
+                    const isFilled = starVal <= activeScore;
+
+                    return (
+                      <button
+                        key={starVal}
+                        type="button"
+                        onMouseEnter={() => setHoverRating(starVal)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        onClick={() => {
+                          setRating(starVal);
+                          if (errors.rating) setErrors(prev => ({ ...prev, rating: '' }));
+                        }}
+                        className="p-0.5 cursor-pointer transition-all duration-150 hover:scale-110 active:scale-95 border-0 bg-transparent select-none drop-shadow-[0_2px_8px_rgba(245,158,11,0.25)]"
+                      >
+                        <Star
+                          size={38}
+                          className={`stroke-[1.5] transition-colors duration-150 ${
+                            isFilled
+                              ? 'fill-[#F59E0B] text-[#F59E0B]'
+                              : 'text-[#E5E7EB]'
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Sentiment Label */}
+                <div className="h-6 flex items-center">
+                  <span className={`text-sm font-bold ${rating > 0 || hoverRating > 0 ? 'text-[#2563EB]' : 'text-slate-400'}`}>
+                    {getSentimentText(hoverRating || rating)}
+                  </span>
+                </div>
+              </div>
+
+              {errors.rating && (
+                <span className="text-xs text-red-500 font-semibold mt-2">{errors.rating}</span>
+              )}
+            </div>
+
+            {/* 3. CRITERIA RATINGS ("Đánh giá chi tiết") */}
+            <div className="flex flex-col">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                ĐÁNH GIÁ CHI TIẾT
+              </span>
+
+              <div className="flex flex-col divide-y divide-[#E5E7EB]">
+                {criteriaList.map((criterion) => {
+                  const currentScore = criteriaRatings[criterion.id] || 5;
+                  return (
+                    <div key={criterion.id} className="py-3 flex justify-between items-center text-xs">
+                      <span className="font-semibold text-slate-800">{criterion.label}</span>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((score) => {
+                          const isFilled = score <= currentScore;
+                          return (
+                            <button
+                              key={score}
+                              type="button"
+                              onClick={() => handleCriteriaRating(criterion.id, score)}
+                              className="p-0.5 cursor-pointer bg-transparent border-0 select-none hover:scale-110 transition-transform"
+                            >
+                              <Star
+                                size={18}
+                                className={`stroke-[1.5] transition-colors ${
+                                  isFilled ? 'fill-[#F59E0B] text-[#F59E0B]' : 'text-[#E5E7EB]'
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+
+          {/* CỘT PHẢI (~45% / lg:col-span-5): Quick Chips, Comment Textarea, Compact Photo Upload & Submit */}
+          <div className="lg:col-span-5 bg-white rounded-[14px] border border-[#E5E7EB] p-6 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] flex flex-col gap-6 reveal-hidden stagger-1">
+            
+            {/* 1. QUICK CHIPS */}
+            <div className="flex flex-col gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                {tagSectionTitle}
+              </span>
+
+              <div className="flex flex-wrap gap-2">
+                {activeTagsList.map((tag) => {
+                  const isSelected = selectedTags.includes(tag);
+                  return (
                     <button
+                      key={tag}
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                      onClick={() => handleTagToggle(tag)}
+                      className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all duration-150 cursor-pointer border flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-[#E0F2FE] text-[#0284C7] border-[#0284C7] font-bold'
+                          : 'bg-white text-slate-700 border-[#E5E7EB] hover:bg-slate-50'
+                      }`}
                     >
-                      Thay đổi
+                      {isSelected && <Check size={13} className="text-[#0284C7]" />}
+                      <span>{tag}</span>
                     </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="border-b border-[#E5E7EB]"></div>
+
+            {/* 2. TEXTAREA COMMENT */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold text-slate-800">
+                Chia sẻ thêm về trải nghiệm {rating > 0 && rating <= 2 && <span className="text-red-500">*</span>}
+              </label>
+              <textarea
+                rows={4}
+                placeholder={
+                  rating > 0 && rating <= 2
+                    ? "Vui lòng chia sẻ lý do bạn chưa hài lòng để DUDI hỗ trợ xử lý ngay (tối thiểu 10 ký tự)..."
+                    : "Nhập ý kiến đóng góp của bạn..."
+                }
+                value={comment}
+                onChange={(e) => {
+                  setComment(e.target.value);
+                  if (errors.comment) setErrors(prev => ({ ...prev, comment: '' }));
+                }}
+                className={`w-full px-3.5 py-3 bg-white border rounded-[8px] text-slate-900 text-xs md:text-sm font-medium outline-none transition-all placeholder:text-slate-400 resize-none ${
+                  errors.comment
+                    ? 'border-red-400 focus:ring-2 focus:ring-red-100'
+                    : 'border-[#E5E7EB] focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100/60'
+                }`}
+              />
+              {errors.comment && (
+                <span className="text-[11px] text-red-500 font-semibold">{errors.comment}</span>
+              )}
+            </div>
+
+            {/* 3. COMPACT DASHED UPLOAD AREA */}
+            <div className="flex flex-col gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoChange}
+                accept="image/*"
+                className="hidden"
+              />
+
+              {photoPreview ? (
+                <div className="flex items-center gap-3">
+                  <div className="relative group w-[72px] h-[72px] rounded-[6px] overflow-hidden border border-[#E5E7EB] bg-slate-100 shrink-0">
+                    <img
+                      src={photoPreview}
+                      alt="Attachment preview"
+                      className="w-full h-full object-cover"
+                    />
                     <button
                       type="button"
                       onClick={handleClearPhoto}
-                      className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-650 border border-red-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center text-xs hover:bg-black border-0 cursor-pointer"
+                      title="Xóa ảnh"
                     >
-                      Xóa ảnh
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <div className="flex flex-col text-xs text-slate-600 gap-0.5">
+                    <span className="font-semibold truncate max-w-[180px]">{mockPhotoName}</span>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-[#2563EB] font-bold text-left hover:underline bg-transparent border-0 cursor-pointer p-0"
+                    >
+                      Thay đổi ảnh
                     </button>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <>
-                <Camera size={26} className="text-slate-450" />
-                <div className="flex flex-col gap-0.5 text-xs text-slate-500">
-                  <span className="font-extrabold text-slate-650">Bấm để tải ảnh lên</span>
-                  <span className="text-[10px] text-slate-400 font-semibold">Tải ảnh quần áo/giày dép sau khi giặt nếu có</span>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border border-dashed border-[#E5E7EB] rounded-[8px] p-3.5 bg-slate-50/50 hover:bg-slate-50 cursor-pointer transition-colors text-center flex flex-col items-center justify-center gap-1 select-none"
+                >
+                  <div className="flex items-center gap-1.5 text-slate-700 font-bold text-xs">
+                    <Camera size={16} className="text-slate-400" />
+                    <span>Thêm hình ảnh</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Tối đa 4 ảnh · JPG/PNG
+                  </span>
                 </div>
-              </>
-            )}
+              )}
+            </div>
+
+            <div className="border-b border-[#E5E7EB]"></div>
+
+            {/* 4. ANONYMOUS CHECKBOX & SUBMIT BUTTON */}
+            <div className="flex flex-col gap-4">
+              <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-semibold select-none">
+                <input
+                  type="checkbox"
+                  checked={isAnonymous}
+                  onChange={(e) => setIsAnonymous(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#2563EB] focus:ring-blue-500 cursor-pointer"
+                />
+                <span>Gửi đánh giá ẩn danh</span>
+              </label>
+
+              <button
+                type="submit"
+                className="group w-full py-3.5 bg-[#2563EB] hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-[8px] transition-all cursor-pointer border-0 shadow-2xs flex items-center justify-center gap-2"
+              >
+                <span>GỬI ĐÁNH GIÁ</span>
+                <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
+              </button>
+            </div>
+
           </div>
-        </div>
 
-        {/* Checkbox & Cam kết */}
-        <div className="flex flex-col gap-3 pt-3.5 border-t border-slate-100">
-          <label className="flex items-center gap-2.5 text-xs text-slate-650 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={isAnonymous}
-              onChange={(e) => setIsAnonymous(e.target.checked)}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-            />
-            <span className="font-bold">Gửi đánh giá dưới dạng ẩn danh</span>
-          </label>
-
-          <div className="flex items-start gap-2 text-[11px] text-blue-700 bg-blue-50 p-3 rounded-xl border border-blue-100/50">
-            <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
-            <span className="font-semibold leading-relaxed">
-              Ý kiến của bạn sẽ được bộ phận quản lý xem xét trong 24 giờ.
-            </span>
-          </div>
-        </div>
-
-        {/* Nút gửi đánh giá */}
-        <div className="mt-1">
-          <button
-            type="submit"
-            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-blue-500/10 cursor-pointer border-0"
-          >
-            Gửi đánh giá
-          </button>
-        </div>
-
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
